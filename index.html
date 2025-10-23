@@ -72,6 +72,7 @@ const Glyphs = {
   bullet:{ ch:'*', fg:'#ffd36e', bg:null },
   diamond:{ ch:'♦', fg:'#00ff66', bg:null },
   exit:  { ch:'>', fg:'#c7d2da', bg:null },
+  palm:  { ch:'♣', fg:'#37d065', bg:null }, // decorative jungle palm
 };
 
 const PALETTES = {
@@ -118,11 +119,17 @@ function wallGlyph(x,y,key){
 class RNG{constructor(seed=Date.now()%1e9){this.s=seed>>>0;} next(){let x=this.s; x^=x<<13; x^=x>>>17; x^=x<<5; this.s=x>>>0; return this.s/0xFFFFFFFF;} int(n){return Math.floor(this.next()*n);} }
 
 class Map{
-  constructor(w,h){ this.w=w; this.h=h; this.cells=new Array(w*h).fill(1); }
+  constructor(w,h){
+    // Guard against invalid dimensions to prevent RangeError from invalid array length
+    const W = Math.max(1, Number.isFinite(w) ? Math.floor(w) : 0);
+    const H = Math.max(1, Number.isFinite(h) ? Math.floor(h) : 0);
+    this.w=W; this.h=H; this.cells=new Array(W*H).fill(1);
+  }
   idx(x,y){ return y*this.w+x; }
   inb(x,y){ return x>=0&&y>=0&&x<this.w&&y<this.h; }
   isWall(x,y){ return this.cells[this.idx(x,y)]===1; }
   carve(x,y){ this.cells[this.idx(x,y)] = 0; }
+  carveRect(x0,y0,x1,y1){ const xA=Math.max(1,Math.min(x0,x1)), xB=Math.min(this.w-2,Math.max(x0,x1)); const yA=Math.max(1,Math.min(y0,y1)), yB=Math.min(this.h-2,Math.max(y0,y1)); for(let y=yA;y<=yB;y++) for(let x=xA;x<=xB;x++) this.carve(x,y); }
 
   generate(seed){
     const rng=new RNG(seed);
@@ -145,7 +152,23 @@ class Map{
         }
       }
     };
-    step(4,5); step(4,5); step(4,5); step(5,5); step(4,6);
+    step(4,5); step(4,5); step(5,5);
+
+    // 2.5) Stamp rect rooms (boxy chambers) after CA to create distinct rooms
+    const rooms=[]; const roomCount=8; for(let i=0;i<roomCount;i++){
+      const rw=4+Math.floor(Math.random()*8), rh=3+Math.floor(Math.random()*6);
+      const rx=2+Math.floor(Math.random()*(w-rw-4));
+      const ry=2+Math.floor(Math.random()*(h-rh-4));
+      this.carveRect(rx,ry,rx+rw,ry+rh); rooms.push({x:rx+Math.floor(rw/2), y:ry+Math.floor(rh/2)});
+    }
+
+    // 2.6) Connect rooms with tunnels (L corridors)
+    const digLine=(ax,ay,bx,by)=>{ let x=ax,y=ay; while(x!==bx){ this.carve(x,y); x += (bx>x)?1:-1; } while(y!==by){ this.carve(x,y); y += (by>y)?1:-1; } this.carve(bx,by); };
+    for(let i=1;i<rooms.length;i++){ const a=rooms[i-1], b=rooms[i]; digLine(a.x,a.y,b.x,b.y); }
+
+    // 2.7) Extra drunkard tunnels to add loops
+    const carveWalk=(sx,sy,len)=>{ let x=sx,y=sy; for(let i=0;i<len;i++){ this.carve(x,y); const r=Math.floor(Math.random()*4); if(r===0&&x<w-2) x++; else if(r===1&&x>1) x--; else if(r===2&&y<h-2) y++; else if(y>1) y--; } };
+    for(let i=0;i<12;i++){ let x=2+Math.floor(Math.random()*(w-4)), y=2+Math.floor(Math.random()*(h-4)); if(!this.isWall(x,y)) carveWalk(x,y, 30+Math.floor(Math.random()*90)); }
 
     // 3) Keep only the largest open region
     const regionId=new Array(w*h).fill(-1); let rid=0; const areas=[]; const id2=(x,y)=>y*w+x;
@@ -160,11 +183,7 @@ class Map{
       for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++){ if(regionId[id2(x,y)]!==best) cells[id2(x,y)]=1; }
     }
 
-    // 4) Carve extra looping tunnels for complexity (drunkard walks)
-    const carveWalk=(sx,sy,len)=>{ let x=sx,y=sy; for(let i=0;i<len;i++){ this.carve(x,y); const r=rng.int(4); if(r===0&&x<w-2) x++; else if(r===1&&x>1) x--; else if(r===2&&y<h-2) y++; else if(y>1) y--; } };
-    let walkers=8; while(walkers--){ let x=2+rng.int(w-4), y=2+rng.int(h-4); if(!this.isWall(x,y)) carveWalk(x,y, 40+rng.int(80)); }
-
-    // 5) Light erosion to add nooks
+    // 4) Light erosion to add nooks
     step(5,5);
 
     // 6) Frame
@@ -240,8 +259,8 @@ class Game{
     // ensure at least one enemy starts near the player (within radius 8)
     {
       const near=(x,y)=>Math.abs(x-px)+Math.abs(y-py)<=8;
-      let hasNear=false; let nearIdx=-1;
-      for(let i=1;i<this.entities.length;i++){ const e=this.entities[i]; if(near(e.x,e.y)){ hasNear=true; nearIdx=i; break; } }
+      let hasNear=false;
+      for(let i=1;i<this.entities.length;i++){ const e=this.entities[i]; if(near(e.x,e.y)){ hasNear=true; break; } }
       if(!hasNear && this.entities.length>1){
         let fx=px, fy=py, found=false;
         for(let r=1;r<=8 && !found;r++){
@@ -283,6 +302,16 @@ class Game{
 
     document.getElementById('levelName').textContent=spec.name;
     this.updateHUD();
+
+    // place decorative set dressing per level (palms for jungle/paranoia)
+    // IMPORTANT: use the built-in Map via globalThis to avoid colliding with our Map class
+    this.decor = new globalThis.Map(); // key: idx, value: {ch,fg}
+    const placeDecor = (count, glyph)=>{
+      let placed=0; while(placed<count){ const x=2+rand(this.map.w-4), y=2+rand(this.map.h-4); const i=y*this.map.w+x; if(this.map.isWall(x,y)) continue; if(i===this.exit) continue; if(this.diamonds.has(i)) continue; if(x===this.player.x && y===this.player.y) continue; if(this.entities.some(e=>e.x===x&&e.y===y)) continue; if(this.decor.has(i)) continue; this.decor.set(i, glyph); placed++; }
+    };
+    const levelKey = spec.key;
+    if(levelKey==='jungle' || levelKey==='paranoia'){ placeDecor(28, {ch:Glyphs.palm.ch, fg:Glyphs.palm.fg}); }
+
     log(`[LEVEL ${spec.id}] ${spec.name} — Collect all memory fragments (♦) then reach >`);
   }
 
@@ -365,6 +394,10 @@ class Game{
         else {
           if(visible){ this.drawChar('.',x*TILE_W,y*TILE_H,'#44505a'); }
           else if(seen){ this.drawChar('·',x*TILE_W,y*TILE_H,'#2a323a'); }
+          // decor (only when discovered or visible)
+          if(this.decor && this.decor.has(i) && (visible||seen)){
+            const d=this.decor.get(i); this.drawCharExact(d.ch, x*TILE_W, y*TILE_H, d.fg);
+          }
           if(this.diamonds.has(i)) this.drawCharExact(Glyphs.diamond.ch,x*TILE_W,y*TILE_H,Glyphs.diamond.fg);
           if(this.exit===i) this.drawCharExact(Glyphs.exit.ch,x*TILE_W,y*TILE_H, this.diamonds.size===0? '#e8f1ff' : '#6b7785');
         }
@@ -470,7 +503,9 @@ window.Kommando={ setPalette(key){ const idx=LEVELS.findIndex(l=>l.key===key); i
     console.assert(g.entities.filter(e=>e.type==='enemy').length>=LEVELS[0].enemies, 'Should spawn enemies for level spec');
     console.assert(g.diamonds.size===LEVELS[0].diamonds, 'Should spawn correct number of memory fragments');
     console.assert(typeof g.exit==='number' && g.exit>=0, 'Exit should be placed');
-    log('TEST OK: wallGlyph, Map.generate, cavern connectivity/size, spawns.');
+    // Ensure decor map didn't collide with our Map class
+    console.assert(g.decor instanceof globalThis.Map, 'Decor should be a built-in Map');
+    log('TEST OK: wallGlyph, Map.generate, cavern connectivity/size, spawns, decor type.');
   }catch(err){ console.error(err); log('TEST FAIL: '+(err&&err.message?err.message:err)); }
 })();
 </script>
