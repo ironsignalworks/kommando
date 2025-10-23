@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>lofi apocalypse — dungeon vet paranoia protocol</title>
+<style>
+  :root{
+    --scale: 3;          /* screen scale (integer) */
+    --tile: 16px;        /* base tile size (logical) */
+    --bg: #0c0f12;       /* background around canvas */
+    /* palette */
+    --wall: #1b232b;
+    --floor:#2a323a;
+    --door: #5f4b2a;
+    --med : #86c06c;
+    --barl: #a36e2b;
+    --ink : #0b0f12;
+    --hud : #10161c;
+  }
+  html,body{height:100%}
+  body{
+    margin:0; background: radial-gradient(900px 600px at 70% 30%, #12181f 0%, var(--bg) 60%);
+    color:#cfe3f0; font: 12px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    display:grid; place-items:center;
+  }
+  .frame{
+    position:relative; padding:10px; border-radius:10px;
+    background: linear-gradient(#0a0f14,#070b0f); border:1px solid #131a22;
+    box-shadow: 0 20px 80px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.04);
+  }
+  canvas{ image-rendering: pixelated; image-rendering: crisp-edges; background: var(--ink); display:block }
+  .hud{
+    position:absolute; inset:auto 12px 12px 12px; display:flex; gap:8px; justify-content:space-between; pointer-events:none;
+    color:#9fb4c4; text-shadow:0 1px 0 #000;
+  }
+  .pill{
+    pointer-events:auto;
+    background: linear-gradient(#0f151b,#0a0f13); border:1px solid #1c2631; border-radius:999px; padding:6px 10px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 4px 18px rgba(0,0,0,.35);
+  }
+
+  /* optional CRT */
+  .crt::after{
+    content:""; position:absolute; inset:10px; border-radius:6px; pointer-events:none; mix-blend-mode:overlay;
+    background:
+      repeating-linear-gradient(0deg, rgba(255,255,255,0.06), rgba(255,255,255,0.06) 1px, transparent 1px, transparent 3px),
+      radial-gradient(1200px 600px at 50% 20%, transparent 0, rgba(0,0,0,.15) 60%, rgba(0,0,0,.4) 100%);
+    opacity:.35;
+  }
+</style>
+</head>
+<body>
+<div class="frame crt">
+  <canvas id="game" width="768" height="576"></canvas>
+  <div class="hud">
+    <div class="pill"><b>lofi apocalypse</b> — WASD/Arrows move · R regen · S save</div>
+    <div class="pill" id="seed">seed: —</div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ===== config =====
+  const TILE = 16;                         // logical tile size
+  const SCALE = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--scale')) || 3;
+  const W = 48, H = 36;                    // tiles across / down
+  const COLORS = {
+    wall: getCSS('--wall'), floor: getCSS('--floor'), door: getCSS('--door'),
+    med: getCSS('--med'), barrel: getCSS('--barl'), ink: getCSS('--ink')
+  };
+
+  // ===== canvas =====
+  const view = document.getElementById('game');
+  const ctx = view.getContext('2d');
+  view.width  = W * TILE * SCALE;
+  view.height = H * TILE * SCALE;
+  ctx.imageSmoothingEnabled = false;
+
+  // ===== RNG =====
+  let seed = Math.floor(Math.random()*1e9)>>>0;
+  function setSeed(s){ seed = s>>>0; document.getElementById('seed').textContent = 'seed: ' + seed; }
+  function rng(){
+    // mulberry32
+    let t = seed>>>0;
+    return () => {
+      t += 0x6D2B79F5;
+      let r = Math.imul(t ^ t>>>15, 1|t);
+      r ^= r + Math.imul(r ^ r>>>7, 61|r);
+      return ((r ^ r>>>14)>>>0) / 4294967296;
+    };
+  }
+
+  // ===== map =====
+  const T = { VOID:0, WALL:1, FLOOR:2, DOOR:3, MED:4, BARREL:5 };
+  let map = create2D(H, W, T.WALL);
+  let player = { x: 2, y: 2, dirX: 0, dirY: 1 };
+  const keys = new Set();
+
+  function generate(){
+    const rand = rng();
+    map = create2D(H, W, T.WALL);
+
+    // BSP-ish rooms
+    const rooms = [];
+    const roomCount = 10 + (rand()*8|0);
+    for(let i=0;i<roomCount;i++){
+      const rw = 5 + (rand()*8|0);
+      const rh = 4 + (rand()*7|0);
+      const rx = 1 + (rand()*(W - rw - 2)|0);
+      const ry = 1 + (rand()*(H - rh - 2)|0);
+      rooms.push({x:rx,y:ry,w:rw,h:rh});
+      for(let y=ry;y<ry+rh;y++) for(let x=rx;x<rx+rw;x++) map[y][x] = T.FLOOR;
+    }
+    // connect room centers with L-corridors
+    const centers = rooms.map(r => ({ x:(r.x+r.x+r.w)/2|0, y:(r.y+r.y+r.h)/2|0 })).sort((a,b)=>a.x+a.y - (b.x+b.y));
+    for(let i=1;i<centers.length;i++){
+      const a=centers[i-1], b=centers[i];
+      let x=a.x, y=a.y;
+      while(x!==b.x){ x += b.x>x?1:-1; carve(x,y); }
+      while(y!==b.y){ y += b.y>y?1:-1; carve(x,y); }
+    }
+    // sprinkle doors at some room edges
+    for(const r of rooms){
+      if (rand()<0.7){ const x = r.x + (rand()*r.w|0); if (map[r.y-1]?.[x]===T.WALL) map[r.y-1][x]=T.DOOR; }
+      if (rand()<0.5){ const y = r.y + (rand()*r.h|0); if (map[y]?.[r.x-1]===T.WALL) map[y][r.x-1]=T.DOOR; }
+    }
+    // props
+    for(let i=0;i<30;i++){
+      const x = 1 + (rand()*(W-2)|0), y = 1 + (rand()*(H-2)|0);
+      if (map[y][x]===T.FLOOR && Math.random()<0.15) map[y][x] = T.MED;
+      else if (map[y][x]===T.FLOOR && Math.random()<0.25) map[y][x] = T.BARREL;
+    }
+    // spawn
+    const start = centers[0] || {x:2,y:2};
+    player.x = start.x; player.y = start.y; player.dirX=0; player.dirY=1;
+  }
+  function carve(x,y){ if (x<=0||y<=0||x>=W-1||y>=H-1) return; map[y][x]=T.FLOOR; }
+
+  // ===== drawing =====
+  function draw(){
+    // clear
+    ctx.fillStyle = COLORS.ink; rect(0,0,view.width,view.height);
+
+    // tiles
+    for(let y=0;y<H;y++){
+      for(let x=0;x<W;x++){
+        const t = map[y][x];
+        const sx = x*TILE*SCALE, sy = y*TILE*SCALE;
+        if (t===T.WALL){
+          // wall block with subtle bevel
+          box(sx,sy, COLORS.wall);
+          shadeTop(sx,sy);
+        } else {
+          // floor
+          box(sx,sy, COLORS.floor);
+          if (t===T.DOOR){ hatch(sx,sy, COLORS.door); }
+          else if (t===T.MED){ drawMedkit(sx,sy); }
+          else if (t===T.BARREL){ drawBarrel(sx,sy); }
+        }
+      }
+    }
+    // player (kommando lo-fi)
+    drawKommando(player.x*TILE*SCALE, player.y*TILE*SCALE);
+
+    // vignette
+    vignette();
+  }
+
+  // ===== mini “kommando” (8x8) =====
+  function drawKommando(sx,sy){
+    // body
+    px(sx+4, sy+2, '#88b5c9');
+    px(sx+3, sy+3, '#6ea0b8'); px(sx+4, sy+3, '#6ea0b8'); px(sx+5, sy+3, '#6ea0b8');
+    // helmet
+    px(sx+3, sy+1, '#20333e'); px(sx+4, sy+1, '#2a404c'); px(sx+5, sy+1, '#20333e');
+    // torso
+    rectPixel(sx+3, sy+4, 3, 2, '#2b4a59');
+    // legs
+    px(sx+3, sy+6, '#1a2b33'); px(sx+5, sy+6, '#1a2b33');
+    // rifle silhouette (points toward last dir)
+    const dx = Math.sign(player.dirX), dy = Math.sign(player.dirY);
+    if (dx || dy){
+      const rx = sx + 4 + dx*3, ry = sy + 4 + dy*3;
+      px(rx, ry, '#a9c1cf'); px(rx+dx, ry+dy, '#cfe3f0');
+    }
+  }
+
+  // ===== movement & pickups =====
+  function passable(x,y){
+    if (x<0||y<0||x>=W||y>=H) return false;
+    const t = map[y][x];
+    return t===T.FLOOR || t===T.DOOR || t===T.MED || t===T.BARREL; // barrels act like floor (visual)
+  }
+  function step(dx,dy){
+    const nx = player.x + dx, ny = player.y + dy;
+    player.dirX = dx; player.dirY = dy;
+    if (passable(nx,ny)){
+      player.x = nx; player.y = ny;
+      if (map[ny][nx]===T.MED){
+        // heal pulse
+        pulse(nx,ny, COLORS.med);
+        map[ny][nx] = T.FLOOR;
+      }
+      draw();
+    }
+  }
+
+  // ===== input =====
+  window.addEventListener('keydown', (e) => {
+    const k = e.key.toLowerCase();
+    if (k==='arrowup' || k==='w') step(0,-1);
+    else if (k==='arrowdown' || k==='s') step(0,1);
+    else if (k==='arrowleft' || k==='a') step(-1,0);
+    else if (k==='arrowright' || k==='d') step(1,0);
+    else if (k==='r'){ setSeed(Math.floor(Math.random()*1e9)); generate(); draw(); }
+    else if (k==='s'){ savePNG(); }
+  });
+
+  // ===== boot =====
+  setSeed(seed);
+  generate();
+  draw();
+
+  // ===== helpers: drawing =====
+  function box(x,y,color){
+    ctx.fillStyle = color; rect(x,y,TILE*SCALE,TILE*SCALE);
+  }
+  function shadeTop(x,y){
+    ctx.fillStyle = 'rgba(255,255,255,0.04)'; rect(x,y,TILE*SCALE,TILE*SCALE/4);
+    ctx.fillStyle = 'rgba(0,0,0,0.08)'; rect(x,y+TILE*SCALE-3, TILE*SCALE, 3);
+  }
+  function hatch(x,y,color){
+    box(x,y,color);
+    ctx.fillStyle = 'rgba(0,0,0,0.2)';
+    for(let i=0;i<TILE*SCALE;i+=4){ rect(x+i,y,1,TILE*SCALE); }
+  }
+  function drawMedkit(x,y){
+    // green disk + cross
+    box(x,y, COLORS.floor);
+    circle(x + TILE*SCALE/2, y + TILE*SCALE/2, 5*SCALE/2, COLORS.med);
+    rect(x + TILE*SCALE/2 - 1*SCALE, y + TILE*SCALE/2 - 3, 2*SCALE, 6, '#0b0f12');
+    rect(x + TILE*SCALE/2 - 3, y + TILE*SCALE/2 - 1*SCALE, 6, 2*SCALE, '#0b0f12');
+  }
+  function drawBarrel(x,y){
+    const w=TILE*SCALE, h=TILE*SCALE;
+    box(x,y, COLORS.floor);
+    rect(x+3, y+2, w-6, h-4, COLORS.barrel);
+    ctx.fillStyle='rgba(0,0,0,.15)'; rect(x+3,y+2, w-6, 2);
+    ctx.fillStyle='rgba(0,0,0,.25)'; rect(x+3,y+h-6, w-6, 2);
+  }
+  function vignette(){
+    const g = ctx.createRadialGradient(view.width/2, view.height/2, Math.min(view.width,view.height)/3,
+                                       view.width/2, view.height/2, Math.max(view.width,view.height)/1.1);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(1, 'rgba(0,0,0,0.35)');
+    ctx.fillStyle = g; ctx.fillRect(0,0,view.width,view.height);
+  }
+  function pulse(tx,ty,color){
+    const x = tx*TILE*SCALE + TILE*SCALE/2;
+    const y = ty*TILE*SCALE + TILE*SCALE/2;
+    ctx.save();
+    for(let r=2; r<10; r+=2){
+      circle(x,y,r,color, 0.15*(1 - r/10));
+    }
+    ctx.restore();
+  }
+
+  // ===== utility =====
+  function create2D(h,w,fill){ return Array.from({length:h}, _=> Array(w).fill(fill)); }
+  function rect(x,y,w,h){ ctx.fillRect(x,y,w,h); }
+  function rectPixel(x,y,w,h,c){ ctx.fillStyle=c; ctx.fillRect(x,y,w,h); }
+  function px(x,y,c){ ctx.fillStyle=c; ctx.fillRect(x,y,1*SCALE,1*SCALE); }
+  function circle(cx,cy,r,color,alpha=1){
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+    ctx.closePath(); ctx.fillStyle = withAlpha(color, alpha); ctx.fill();
+  }
+  function withAlpha(hex, a){
+    // hex #rrggbb
+    const c = hex.replace('#',''); const r=parseInt(c.slice(0,2),16), g=parseInt(c.slice(2,4),16), b=parseInt(c.slice(4,6),16);
+    return `rgba(${r},${g},${b},${a})`;
+  }
+  function getCSS(varName){ return getComputedStyle(document.documentElement).getPropertyValue(varName).trim(); }
+  function savePNG(){
+    const a = document.createElement('a');
+    a.download = `lofi_apocalypse_${seed}.png`;
+    a.href = view.toDataURL('image/png');
+    a.click();
+  }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>KOMMANDO — Intro + Typewriter + ANSI Skull (right)</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Courier+Prime:wght@400&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#000;
+    --spawn-ms: 4200;     /* drip spawn duration */
+    --sim-ms:   9000;     /* total drip sim time  */
+    --ansi-ms:  2600;     /* ANSI paint-in duration */
+    --max-particles: 850; /* safety cap */
+  }
+  html,body{
+    height:100%; margin:0; background:var(--bg); color:#cfcfcf;
+    font-family:'Share Tech Mono', monospace;
+    display:flex; align-items:center; justify-content:center; overflow:hidden;
+  }
+  .wrap{ width:min(1200px,96vw); height:min(720px,92vh); position:relative; background:#060606; }
+  canvas{ position:absolute; inset:0; display:block; }
+  #ansi{  z-index:0 }  /* ANSI skull (right) */
+  #paint{ z-index:1 }  /* drips */
+  #type{  z-index:2 }  /* typewriter */
+  #hint{
+    position:absolute; left:50%; bottom:10px; transform:translateX(-50%);
+    font-size:12px; letter-spacing:.06em; opacity:.9; z-index:3; user-select:none;
+    text-shadow:0 0 6px rgba(255,0,0,.25);
+  }
+  
+</style>
+</head>
+<body>
+<div class="wrap" id="wrap">
+  <canvas id="ansi"></canvas>
+  <canvas id="paint"></canvas>
+  <canvas id="type"></canvas>
+  <div id="hint">SPACE / CLICK — replay</div>
+</div>
+
+<!-- Center logo that the drips “paint” -->
+<script type="text/plain" id="ascii-src">
+    :::    ::: ::::::::  ::::    ::::  ::::    ::::      :::     ::::    ::: :::::::::   ::::::::  
+    :+:   :+: :+:    :+: +:+:+: :+:+:+ +:+:+: :+:+:+   :+: :+:   :+:+:   :+: :+:    :+: :+:    :+: 
+    +:+  +:+  +:+    +:+ +:+ +:+:+ +:+ +:+ +:+:+ +:+  +:+   +:+  :+:+:+  +:+ +:+    +:+ +:+    +:+ 
+    +#++:++   +#+    +:+ +#+  +:+  +#+ +#+  +:+  +#+ +#++:++#++: +#+ +:+ +#+ +#+    +:+ +#+    +:+ 
+    +#+  +#+  +#+    +#+ +#+       +#+ +#+       +#+ +#+     +#+ +#+  +#+#+# +#+    +#+ +#+    +#+ 
+    #+#   #+# #+#    #+# #+#       #+# #+#       #+# #+#     #+# #+#   #+#+# #+#    #+# #+#    #+# 
+    ###    ### ########  ###       ### ###       ### ###     ### ###    #### #########   ########                  
+</script>
+
+<!-- ANSI blob forget about this one!!---->
+<script type="text/plain" id="ansi-src">
+    printf "\e[49m \e[m \e[49m \e[m \e[49m \e[m \e[49m \e[m 
+</script>
+
+<script>
+    (async function(){
+      const wrap   = document.getElementById('wrap');
+      const ansiC  = document.getElementById('ansi');
+      const paintC = document.getElementById('paint');
+      const typeC  = document.getElementById('type');
+      const ASCII  = document.getElementById('ascii-src').textContent.replace(/^\n/,'');
+      const ANSI_RAW = document.getElementById('ansi-src').textContent; // keep full content
+    
+      if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
+    
+      /* -------------------- Globals -------------------- */
+      let w, h, pctx, maskData, rows, cols, fontSize, lineH, bbox;
+      let particles = [];
+      let spawnUntil = 0, stopAt = 0, animId = 0, last = 0;
+    
+      const typeCtx = typeC.getContext('2d');
+      const ansiCtx = ansiC.getContext('2d');
+      const TYPE_TEXT = 'THE WAR NEVER ENDS';
+      let typing=false, typeIndex=0, caretOn=true, typeTimer=0, caretTimer=0;
+    
+      /* ANSI animation state */
+      let ansiParsed = null;
+      let ansiGeom   = null;  // {left, top, cellW, cellH}
+      let ansiList   = [];    // flattened drawable cells with precomputed positions
+      let ansiStartT = 0;
+      let ansiDur    = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--ansi-ms')) || 2600;
+    
+      /* ------------ xterm-256 palette + helpers -------- */
+      function c256(n){
+        n = Math.max(0, Math.min(255, n|0));
+        if(n<16){
+          const base=[[0,0,0],[205,0,0],[0,205,0],[205,205,0],[0,0,238],[205,0,205],[0,205,205],[229,229,229],
+                      [127,127,127],[255,0,0],[0,255,0],[255,255,0],[92,92,255],[255,0,255],[0,255,255],[255,255,255]];
+          const c=base[n]; return `rgb(${c[0]},${c[1]},${c[2]})`;
+        }
+        if(n<=231){
+          const i=n-16, r=Math.floor(i/36), g=Math.floor((i%36)/6), b=i%6;
+          const v=t=>t?55+40*t:0;
+          return `rgb(${v(r)},${v(g)},${v(b)})`;
+        }
+        const v=8+10*(n-232); return `rgb(${v},${v},${v})`;
+      }
+    
+      // Accepts: printf "...." ;  (with or without semicolon/whitespace/newline)
+      function stripPrintf(x){
+        const m = x.match(/^\s*printf\s*"(.*)"\s*;?\s*$/s);
+        if (m) return m[1];
+        // Fallback: if author removed printf wrapper, just return text as-is
+        return x;
+      }
+    
+      /* -------------------- Layout & Mask -------------------- */
+      function layout(){
+        const r = wrap.getBoundingClientRect();
+        w = ansiC.width = paintC.width  = typeC.width  = Math.floor(r.width);
+        h = ansiC.height= paintC.height = typeC.height = Math.floor(r.height);
+        pctx = paintC.getContext('2d', {alpha:true});
+        pctx.fillStyle = '#060606'; pctx.fillRect(0,0,w,h);
+    
+        const lines = ASCII.split('\n');
+        rows = lines.length;
+        cols = Math.max(...lines.map(l=>l.length));
+    
+        const fsW = Math.floor(w / (cols * 0.62));
+        const fsH = Math.floor(h / (rows * 1.18));
+        fontSize   = Math.max(8, Math.min(fsW, fsH));
+        lineH      = Math.floor(fontSize * 1.08);
+    
+        const mask = document.createElement('canvas');
+        mask.width=w; mask.height=h;
+        const mctx = mask.getContext('2d');
+        mctx.clearRect(0,0,w,h);
+        mctx.fillStyle='#fff';
+        mctx.font = `${fontSize}px 'Share Tech Mono', monospace`;
+        mctx.textBaseline='top';
+    
+        const blockW = Math.ceil(cols * fontSize * 0.62);
+        const blockH = Math.ceil(rows * lineH);
+        const offX   = Math.max(0, Math.floor((w - blockW)/2));
+        const offY   = Math.max(0, Math.floor((h - blockH)/2));
+    
+        lines.forEach((line,i)=> mctx.fillText(line, offX, offY + i*lineH));
+        const img = mctx.getImageData(0,0,w,h); maskData = img.data;
+    
+        // bbox for placement
+        let minX=w, minY=h, maxX=0, maxY=0;
+        for(let y=0;y<h;y+=2){
+          const rowOff=y*w*4;
+          for(let x=0;x<w;x+=2){
+            if(maskData[rowOff+x*4+3]>10){
+              if(x<minX)minX=x; if(y<minY)minY=y; if(x>maxX)maxX=x; if(y>maxY)maxY=y;
+            }
+          }
+        }
+        bbox = {minX, minY, maxX, maxY, width:maxX-minX, height:maxY-minY, cx:(minX+maxX)/2, cy:(minY+maxY)/2};
+    
+        // Parse and prepare ANSI geometry & draw list (depends on canvas size)
+        ansiParsed = parseANSI(ANSI_RAW);
+        prepareAnsiGeometryAndList();
+        typeCtx.clearRect(0,0,w,h);
+      }
+    
+      function maskAt(x,y){
+        if(x<0||y<0||x>=w||y>=h) return 0;
+        return maskData[((y|0)*w + (x|0))*4 + 3] > 10 ? 1 : 0;
+      }
+      function field(x,y){
+        const l=maskAt(x-1,y), r=maskAt(x+1,y), u=maskAt(x,y-1), d=maskAt(x,y+1);
+        return {gx:(r-l), gy:(d-u)};
+      }
+    
+      /* -------------------- Drip Painter -------------------- */
+      const MAX = 850;
+      function spawnParticle(){
+        const band = Math.max(20, Math.floor(bbox.width * 1.0));
+        const startX = Math.max(0, bbox.cx - band/2);
+        return {
+          x: startX + Math.random()*band,
+          y: Math.max(0, bbox.minY - 40) - Math.random()*40,
+          vx:(Math.random()-.5)*0.45,
+          vy: 0.55 + Math.random()*0.55,
+          r:  1.6 + Math.random()*3.2
+        };
+      }
+      function deposit(p){
+        const g = pctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*1.25);
+        g.addColorStop(0,'rgba(255,27,27,0.95)');
+        g.addColorStop(1,'rgba(161,0,0,0.85)');
+        pctx.fillStyle=g; pctx.beginPath(); pctx.arc(p.x,p.y,p.r,0,Math.PI*2); pctx.fill();
+        pctx.strokeStyle='rgba(59,0,0,0.85)';
+        pctx.lineWidth=Math.max(1,p.r*0.7);
+        pctx.beginPath(); pctx.moveTo(p.x,p.y - Math.min(10,p.vy*2.2)); pctx.lineTo(p.x,p.y+p.r*1.2); pctx.stroke();
+      }
+    
+      /* -------------------- Typewriter -------------------- */
+      function startTypewriter(){
+        typing = true; typeIndex = 0; caretOn = true;
+        const maxW = Math.floor(bbox.width*0.9)||Math.floor(w*0.8);
+        const ts = Math.min(64, Math.max(18, Math.floor(maxW/(TYPE_TEXT.length*0.62))));
+        typeCtx.textBaseline='middle'; typeCtx.textAlign='center';
+        typeCtx.font = `${ts}px "Courier Prime", monospace`;
+        const y = Math.min(h-40, bbox.maxY + Math.max(32, Math.floor(bbox.height*0.08)));
+        const cx = Math.floor(w/2);
+        const speed = 55;
+        function draw(){
+          typeCtx.clearRect(0, y-ts, w, ts*2);
+          const txt = TYPE_TEXT.slice(0,typeIndex);
+          typeCtx.fillStyle='#e8e8e8'; typeCtx.fillText(txt, cx, y);
+          if(typing && caretOn){
+            const pre = TYPE_TEXT.slice(0, Math.max(0,typeIndex));
+            const meas = typeCtx.measureText(pre);
+            const caretX = cx - (typeCtx.measureText(TYPE_TEXT).width/2) + meas.width + 2;
+            const ch = Math.floor(ts*0.95);
+            typeCtx.fillRect(caretX, y - ch*0.55, Math.max(2, ts*0.07), ch*0.95);
+          }
+        }
+        function step(){
+          if(typeIndex<=TYPE_TEXT.length){ draw(); typeIndex++; typeTimer=setTimeout(step,speed); }
+          else { typing=false; draw(); }
+        }
+        function blink(){ caretOn=!caretOn; if(!typing) return; draw(); caretTimer=setTimeout(blink,420); }
+        draw(); typeTimer=setTimeout(step,speed); caretTimer=setTimeout(blink,420);
+      }
+    
+      /* -------------------- ANSI Renderer (right) -------------------- */
+      function parseANSI(src){
+        // NOTE: your ANSI stays exactly as pasted (huge printf "…")
+        // We parse \e[...m sequences and text/blocks between them.
+        const s = stripPrintf(src).replace(/\r/g,'');
+        let i=0, row=0, col=0;
+        let fg='#cfcfcf', bg=null;
+        const rows=[[]];
+    
+        function put(ch){
+          rows[row][col] = {ch, fg, bg};
+          col++;
+        }
+    
+        while(i<s.length){
+          // interpret escape style: \e[...m
+          if(s[i]==='\\' && s[i+1]==='e' && s[i+2]==='['){
+            i+=3; let p=''; while(i<s.length && s[i]!=='m'){ p+=s[i++]; } if(s[i]==='m') i++; // skip 'm'
+            const parts=p.split(';').filter(Boolean);
+            for(let k=0;k<parts.length;){
+              const a=parts[k++];
+              if(a==='0'){ fg='#cfcfcf'; bg=null; continue; }
+              if(a==='39'){ fg='#cfcfcf'; continue; }
+              if(a==='49'){ bg=null; continue; }
+              if(a==='38'){
+                const mode=parts[k++]; 
+                if(mode==='5'){ fg=c256(parts[k++]); }
+                else if(mode==='2'){ fg=`rgb(${+parts[k++]},${+parts[k++]},${+parts[k++]})`; }
+                continue;
+              }
+              if(a==='48'){
+                const mode=parts[k++];
+                if(mode==='5'){ bg=c256(parts[k++]); }
+                else if(mode==='2'){ bg=`rgb(${+parts[k++]},${+parts[k++]},${+parts[k++]})`; }
+                continue;
+              }
+              // ignore other attributes
+            }
+            continue;
+          }
+          if(s[i]==='\n'){ row++; col=0; rows[row]=rows[row]||[]; i++; continue; }
+          put(s[i]); i++;
+        }
+        const heights = rows.length;
+        const widths  = rows.map(r => (r ? r.length : 0));
+        const maxW    = widths.length ? Math.max(...widths) : 0;
+        return {rows, heights, maxW};
+      }
+    
+      function prepareAnsiGeometryAndList(){
+        if(!ansiParsed) return;
+        const rightPad = 10;
+        const areaW = Math.floor(w*0.46);
+        const areaH = h;
+    
+        const cellH = Math.max(8, Math.floor(areaH / (ansiParsed.heights * 1.04)));
+        const cellW = Math.max(5, Math.floor(cellH * 0.62));
+        const totalW = ansiParsed.maxW * cellW;
+    
+        const left = Math.max(0, w - Math.min(areaW, totalW) - rightPad);
+        const top  = Math.max(0, Math.floor((h - ansiParsed.heights*cellH)/2));
+    
+        ansiGeom = {left, top, cellW, cellH};
+    
+        // Build flattened draw list (skip pure spaces, keep block glyphs first)
+        const list = [];
+        for(let r=0; r<ansiParsed.heights; r++){
+          const line = ansiParsed.rows[r] || [];
+          for(let c=0; c<line.length; c++){
+            const cell = line[c];
+            if(!cell) continue;
+            const ch = cell.ch;
+            if(ch===' ') continue; // skip empty
+            const x = left + c*cellW, y = top + r*cellH;
+    
+            if(cell.bg && (ch==='▀' || ch==='▄')){
+              list.push({type:'bg-split', x, y, cell});
+            } else if(cell.bg && ch!=='█') {
+              list.push({type:'bg', x, y, cell});
+            }
+    
+            if(ch==='█'){
+              list.push({type:'full', x, y, cell});
+            }else if(ch==='▀'){
+              list.push({type:'top', x, y, cell});
+            }else if(ch==='▄'){
+              list.push({type:'bottom', x, y, cell});
+            }else{
+              list.push({type:'text', x, y, cell});
+            }
+          }
+        }
+    
+        // Pleasant sweep: row-major
+        list.sort((a,b)=> (a.y===b.y ? a.x-b.x : a.y-b.y));
+        ansiList = list;
+      }
+    
+      function drawAnsiStatic(){
+        if(!ansiParsed || !ansiGeom) return;
+        ansiCtx.clearRect(0,0,ansiC.width, ansiC.height);
+        ansiCtx.globalAlpha = 0.96;
+        ansiCtx.imageSmoothingEnabled=false;
+        ansiCtx.font = `${ansiGeom.cellH}px 'Share Tech Mono', monospace`;
+        ansiCtx.textBaseline='top';
+    
+        // Static draw (no animation)
+        for(let r=0; r<ansiParsed.heights; r++){
+          const line = ansiParsed.rows[r] || [];
+          for(let c=0; c<line.length; c++){
+            const cell = line[c]; if(!cell) continue;
+            const x = ansiGeom.left + c*ansiGeom.cellW, y = ansiGeom.top + r*ansiGeom.cellH;
+            if(cell.bg){ ansiCtx.fillStyle=cell.bg; ansiCtx.fillRect(x,y,ansiGeom.cellW,ansiGeom.cellH); }
+            const ch = cell.ch;
+            if(ch===' ') continue;
+            if(ch==='█'){ ansiCtx.fillStyle=cell.fg; ansiCtx.fillRect(x,y,ansiGeom.cellW,ansiGeom.cellH); continue; }
+            if(ch==='▀'){ ansiCtx.fillStyle=cell.fg; ansiCtx.fillRect(x,y,ansiGeom.cellW,ansiGeom.cellH/2);
+                          if(cell.bg){ ansiCtx.fillStyle=cell.bg; ansiCtx.fillRect(x,y+ansiGeom.cellH/2,ansiGeom.cellW,ansiGeom.cellH/2); }
+                          continue; }
+            if(ch==='▄'){ if(cell.bg){ ansiCtx.fillStyle=cell.bg; ansiCtx.fillRect(x,y,ansiGeom.cellW,ansiGeom.cellH/2); }
+                          ansiCtx.fillStyle=cell.fg; ansiCtx.fillRect(x,y+ansiGeom.cellH/2,ansiGeom.cellW,ansiGeom.cellH/2); continue; }
+            ansiCtx.fillStyle=cell.fg; ansiCtx.fillText(ch, x, y);
+          }
+        }
+        ansiCtx.globalAlpha = 1;
+      }
+    
+      function drawAnsiFrame(ts){
+        if(!ansiList.length || !ansiGeom){
+          // Fallback: draw static so you see the skull even if animation prep failed
+          drawAnsiStatic();
+          return;
+        }
+        const dur = ansiDur;
+        const t = Math.max(0, Math.min(1, (ts - ansiStartT)/dur));
+        const N = Math.floor(ansiList.length * t);
+    
+        ansiCtx.clearRect(0,0,ansiC.width, ansiC.height);
+        ansiCtx.globalAlpha = 0.96;
+        ansiCtx.imageSmoothingEnabled=false;
+        ansiCtx.font = `${ansiGeom.cellH}px 'Share Tech Mono', monospace`;
+        ansiCtx.textBaseline='top';
+    
+        for(let i=0;i<N;i++){
+          const op = ansiList[i];
+          const {x,y,cell} = op;
+    
+          if(op.type==='bg'){
+            ansiCtx.fillStyle = cell.bg; ansiCtx.fillRect(x,y,ansiGeom.cellW,ansiGeom.cellH);
+            continue;
+          }
+          if(op.type==='bg-split'){
+            if(cell.ch==='▀'){
+              ansiCtx.fillStyle = cell.bg; ansiCtx.fillRect(x,y+ansiGeom.cellH/2,ansiGeom.cellW,ansiGeom.cellH/2);
+            }else{
+              ansiCtx.fillStyle = cell.bg; ansiCtx.fillRect(x,y,ansiGeom.cellW,ansiGeom.cellH/2);
+            }
+            continue;
+          }
+          if(op.type==='full'){
+            ansiCtx.fillStyle = cell.fg; ansiCtx.fillRect(x,y,ansiGeom.cellW,ansiGeom.cellH);
+            continue;
+          }
+          if(op.type==='top'){
+            ansiCtx.fillStyle = cell.fg; ansiCtx.fillRect(x,y,ansiGeom.cellW,ansiGeom.cellH/2);
+            if(cell.bg){ ansiCtx.fillStyle=cell.bg; ansiCtx.fillRect(x,y+ansiGeom.cellH/2,ansiGeom.cellW,ansiGeom.cellH/2); }
+            continue;
+          }
+          if(op.type==='bottom'){
+            if(cell.bg){ ansiCtx.fillStyle=cell.bg; ansiCtx.fillRect(x,y,ansiGeom.cellW,ansiGeom.cellH/2); }
+            ansiCtx.fillStyle = cell.fg; ansiCtx.fillRect(x,y+ansiGeom.cellH/2,ansiGeom.cellW,ansiGeom.cellH/2);
+            continue;
+          }
+          ansiCtx.fillStyle = cell.fg;
+          ansiCtx.fillText(cell.ch, x, y);
+        }
+        ansiCtx.globalAlpha = 1;
+      }
+    
+      /* -------------------- Main Tick -------------------- */
+      function tick(ts){
+        if(!last) last=ts; last=ts;
+    
+        // spawn drips during window
+        if(ts<stopAt && ts<spawnUntil && particles.length<MAX){
+          for(let i=0;i<8;i++){ if(particles.length<MAX) particles.push(spawnParticle()); }
+        }
+    
+        // advance particles
+        for(let i=particles.length-1;i>=0;i--){
+          const p=particles[i];
+          p.vy+=0.04; const F=field(p.x,p.y); p.vx+=F.gx*0.18; p.vy+=F.gy*0.18;
+          p.vx*=0.985; p.vy*=0.992; p.x+=p.vx; p.y+=p.vy;
+          if(maskAt(p.x,p.y)){ p.vx*=0.9; p.vy=Math.max(0.28,p.vy*0.88); deposit(p); }
+          if(p.x<-24||p.x>w+24||p.y>h+36) particles.splice(i,1);
+        }
+    
+        // ANSI paint-in animation
+        drawAnsiFrame(ts);
+    
+        if(ts<stopAt){ animId=requestAnimationFrame(tick); } else { cancelAnimationFrame(animId); }
+      }
+    
+      /* -------------------- Run/Replay -------------------- */
+      function start(){
+        cancelAnimationFrame(animId); particles.length=0;
+        typeCtx.clearRect(0,0,w,h);
+        pctx.clearRect(0,0,w,h); pctx.fillStyle='#060606'; pctx.fillRect(0,0,w,h);
+    
+        // reset ANSI animation
+        ansiStartT = performance.now();
+        ansiDur = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--ansi-ms')) || 2600;
+    
+        const now=performance.now();
+        spawnUntil=now + (parseInt(getComputedStyle(document.documentElement).getPropertyValue('--spawn-ms'))||4200);
+        stopAt    =now + (parseInt(getComputedStyle(document.documentElement).getPropertyValue('--sim-ms'))  ||9000);
+    
+        setTimeout(()=> startTypewriter(), Math.max(80, (spawnUntil-now) + 150));
+        animId=requestAnimationFrame(tick);
+      }
+    
+      window.addEventListener('resize', ()=>{ layout(); start(); }, {passive:true});
+      window.addEventListener('keydown', e=>{ if(e.code==='Space'){ e.preventDefault(); start(); }});
+      window.addEventListener('click', ()=> start(), {passive:true});
+    
+      // boot
+      layout(); start();
+    })();
+    </script>
+    
+    </body>
+</html>

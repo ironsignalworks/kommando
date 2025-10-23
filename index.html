@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Fog Of War — Real‑Time Caverns v0.3.1</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root{ --bg:#000; --ink:#e4e7ea; --hud:#0a0d10; --accent:#7efc6b; --danger:#ff5050; --hudH: 240px; }
+  html,body{height:100%}
+  body{margin:0; background:var(--bg); color:var(--ink); font-family:'Share Tech Mono', ui-monospace, Menlo, Consolas, monospace; overflow:hidden;}
+  .app{display:grid; grid-template-columns:minmax(0,1fr) 320px; grid-template-rows:100vh; gap:8px; height:100vh; margin:0; padding:8px; max-width:none; box-sizing:border-box;}
+  .view{position:relative; background:#050607; border:1px solid #111; border-radius:10px; overflow:hidden; height:100%; min-height:0;}
+  canvas{display:block; width:100%; height:100%; image-rendering:pixelated; box-sizing:border-box}
+  .panel{background:linear-gradient(180deg,#0a0f14,#070a0f); border:1px solid #111; border-radius:10px; padding:12px; display:flex; flex-direction:column; min-height:0; height:100%;}
+  .panel, .panel * { font-family:'VT323', ui-monospace, Menlo, Consolas, monospace; }
+  .panel .logo { font-family:'Share Tech Mono', ui-monospace, Menlo, Consolas, monospace !important; }
+  .row{display:flex; align-items:center; justify-content:space-between; gap:8px; margin:6px 0}
+  .meter{height:8px; background:#111; border-radius:999px; overflow:hidden}
+  .meter>i{display:block; height:100%; background:linear-gradient(90deg,#ff3c3c,#ff9f3c)}
+  .pill{display:inline-block; padding:4px 8px; border:1px solid #222; border-radius:999px; margin:2px; font-size:11px}
+  .kbd{background:#0e1217; border:1px solid #1b2330; padding:2px 6px; border-radius:6px}
+  .note{font-size:12px; opacity:.75}
+  .logo{font-family:'Share Tech Mono',ui-monospace,monospace !important;font-size:4px;line-height:4px;letter-spacing:0;white-space:pre;display:block;color:var(--ink);opacity:.9;margin:2px 0 6px 0;overflow:hidden;}
+</style>
+</head>
+<body>
+  <div class="app">
+    <div class="view">
+      <canvas id="screen" width="960" height="576"></canvas>
+    </div>
+    <aside class="panel">
+      <pre class="logo">█████   ████    ███████    ██████   ██████ ██████   ██████   █████████   ██████   █████ ██████████      ███████
+▒▒███   ███▒   ███▒▒▒▒▒███ ▒▒██████ ██████ ▒▒██████ ██████   ███▒▒▒▒▒███ ▒▒██████ ▒▒███ ▒▒███▒▒▒▒███   ███▒▒▒▒▒███
+ ▒███  ███    ███     ▒▒███ ▒███▒█████▒███  ▒███▒█████▒███  ▒███    ▒███  ▒███▒███ ▒███  ▒███   ▒▒███ ███     ▒▒███
+ ▒███████    ▒███      ▒███ ▒███▒▒███ ▒███  ▒███▒▒███ ▒███  ▒███████████  ▒███▒▒███▒███  ▒███    ▒███▒███      ▒███
+ ▒███▒▒███   ▒███      ▒███ ▒███ ▒▒▒  ▒███  ▒███ ▒▒▒  ▒███  ▒███▒▒▒▒▒███  ▒███ ▒▒██████  ▒███    ▒███▒███      ▒███
+ ▒███ ▒▒███  ▒▒███     ███  ▒███      ▒███  ▒███      ▒███  ▒███    ▒███  ▒███  ▒▒█████  ▒███    ███ ▒▒███     ███
+ █████ ▒▒████ ▒▒▒███████▒   █████     █████ █████     █████ █████   █████ █████  ▒▒█████ ██████████   ▒▒▒███████▒
+▒▒▒▒▒   ▒▒▒▒    ▒▒▒▒▒▒▒    ▒▒▒▒▒     ▒▒▒▒▒ ▒▒▒▒▒     ▒▒▒▒▒ ▒▒▒▒▒   ▒▒▒▒▒ ▒▒▒▒▒    ▒▒▒▒▒ ▒▒▒▒▒▒▒▒▒▒      ▒▒▒▒▒▒▒</pre>
+      <div class="row"><strong>Fog Of War</strong><span class="pill" id="build">v0.3.1</span></div>
+      <div class="row"><span>Level</span><span id="levelName">—</span></div>
+      <div class="row"><span>Sanity</span><div class="meter" style="width:180px"><i id="sanityBar" style="width:100%"></i></div><span id="sanityPct">100%</span></div>
+      <div class="row"><span>Memory Fragments</span><span id="diamonds">0/0</span></div>
+      <div class="row"><span>Exit</span><span id="exitState">Locked</span></div>
+      <div class="row note">Move <span class="kbd">WASD</span> / Arrow Keys · Shoot <span class="kbd">Space</span></div>
+    </aside>
+  </div>
+
+<script>
+/**********************
+ * CONFIG & CONSTANTS *
+ **********************/
+const TILE_W = 16;           // px per cell (rendered)
+const TILE_H = 18;           // px per cell (rendered)
+const GRID_W = 60;           // columns
+const GRID_H = 30;           // rows
+
+// realtime timing (ms)
+const MOVE_COOLDOWN   = 70;    // player step interval while key held
+const ENEMY_COOLDOWN  = 130;   // enemy step interval
+const BULLET_COOLDOWN = 140;   // fire rate
+const BULLET_SPEED    = 0.55;  // tiles per ms
+const SANITY_DRAIN_PS = 3;     // sanity drain per second
+
+const Glyphs = {
+  floor: { ch:' ', fg:'#2b333b', bg:null },
+  wall:  { ch:'█', fg:'#9aa4af', bg:null },
+  jack:  { ch:'@', fg:'#66aaff', bg:null },
+  enemy: { ch:'●', fg:'#ff3c3c', bg:null }, // solid tick
+  bullet:{ ch:'*', fg:'#ffd36e', bg:null },
+  diamond:{ ch:'♦', fg:'#00ff66', bg:null },
+  exit:  { ch:'>', fg:'#c7d2da', bg:null },
+};
+
+const PALETTES = {
+  reality:   { name:'Cold Blue',  tint:[0.75,0.85,1.10], bg:'#061018' },
+  jungle:    { name:'Jungle',     tint:[0.80,1.05,0.80], bg:'#0a140b' },
+  paranoia:  { name:'Paranoia',   tint:[1.15,0.70,0.70], bg:'#150707' },
+  psychosis: { name:'Psychosis',  tint:[0.95,0.95,0.95], bg:'#000', flash:'#9b0000' },
+  collapse:  { name:'Collapse',   tint:[1.0,1.0,1.0], bg:'#000' },
+};
+
+const LEVELS = [
+  { id:1, key:'reality',   name:'WELCOME HOME',   enemies:4, diamonds:8 },
+  { id:2, key:'jungle',    name:'THE JUNGLE RETURNS', enemies:6, diamonds:10 },
+  { id:3, key:'paranoia',  name:'TARGETS OF OPPORTUNITY', enemies:8, diamonds:12 },
+  { id:4, key:'psychosis', name:'THE RAID', enemies:10, diamonds:14 },
+  { id:5, key:'collapse',  name:'EXTRACTION', enemies:12, diamonds:16 },
+];
+
+/**********************
+ * UTILS & LOG         *
+ **********************/
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const rand =(n)=>Math.floor(Math.random()*n);
+const choice=(arr)=>arr[rand(arr.length)];
+function log(msg){ try{ console.log('[LOG]', msg);}catch(_){} }
+
+/**********************
+ * VISUAL HELPERS      *
+ **********************/
+function wallGlyph(x,y,key){
+  const r=(x+y*3)%6;
+  switch(key){
+    case 'reality':   return (r<2)?'█':(r<4)?'▓':'▒';
+    case 'jungle':    return (r<2)?'▓':(r<5)?'▒':'█';
+    case 'paranoia':  return (r%2===0)?'█':'▓';
+    case 'psychosis': return (r%3===0)?'█':'▒';
+    default:          return '█';
+  }
+}
+
+/**********************
+ * WORLD & MAP GEN (CAVERNS) *
+ **********************/
+class RNG{constructor(seed=Date.now()%1e9){this.s=seed>>>0;} next(){let x=this.s; x^=x<<13; x^=x>>>17; x^=x<<5; this.s=x>>>0; return this.s/0xFFFFFFFF;} int(n){return Math.floor(this.next()*n);} }
+
+class Map{
+  constructor(w,h){ this.w=w; this.h=h; this.cells=new Array(w*h).fill(1); }
+  idx(x,y){ return y*this.w+x; }
+  inb(x,y){ return x>=0&&y>=0&&x<this.w&&y<this.h; }
+  isWall(x,y){ return this.cells[this.idx(x,y)]===1; }
+  carve(x,y){ this.cells[this.idx(x,y)] = 0; }
+
+  generate(seed){
+    const rng=new RNG(seed);
+    const w=this.w, h=this.h; const cells=this.cells;
+
+    // 1) Random fill (denser for more complexity)
+    for(let y=0;y<h;y++) for(let x=0;x<w;x++){
+      if(x===0||y===0||x===w-1||y===h-1){ cells[this.idx(x,y)]=1; continue; }
+      cells[this.idx(x,y)] = (rng.next()<0.52)?1:0; // ~52% walls
+    }
+
+    // 2) Cellular automata smoothing (extra passes)
+    const step=(survive=4,birth=5)=>{
+      const copy=cells.slice();
+      for(let y=1;y<h-1;y++){
+        for(let x=1;x<w-1;x++){
+          let count=0; for(let yy=-1;yy<=1;yy++) for(let xx=-1;xx<=1;xx++) if(!(xx===0&&yy===0)) count += copy[this.idx(x+xx,y+yy)];
+          if(copy[this.idx(x,y)]===1){ cells[this.idx(x,y)] = (count>=survive)?1:0; }
+          else { cells[this.idx(x,y)] = (count>=birth)?1:0; }
+        }
+      }
+    };
+    step(4,5); step(4,5); step(4,5); step(5,5); step(4,6);
+
+    // 3) Keep only the largest open region
+    const regionId=new Array(w*h).fill(-1); let rid=0; const areas=[]; const id2=(x,y)=>y*w+x;
+    for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++) if(cells[id2(x,y)]===0 && regionId[id2(x,y)]===-1){
+      const q=[[x,y]]; regionId[id2(x,y)]=rid; let area=0; while(q.length){ const [cx,cy]=q.pop(); area++; const N=[[1,0],[-1,0],[0,1],[0,-1]]; for(const [dx,dy] of N){ const nx=cx+dx, ny=cy+dy; const i=id2(nx,ny); if(nx>0&&ny>0&&nx<w-1&&ny<h-1 && cells[i]===0 && regionId[i]===-1){ regionId[i]=rid; q.push([nx,ny]); } } }
+      areas[rid]=area; rid++;
+    }
+    let best=areas.length?areas.indexOf(Math.max(...areas)):-1; if(best<0){
+      for(let y=1;y<h-1;y++) this.carve(Math.floor(w/2),y);
+      for(let x=1;x<w-1;x++) this.carve(x,Math.floor(h/2));
+    } else {
+      for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++){ if(regionId[id2(x,y)]!==best) cells[id2(x,y)]=1; }
+    }
+
+    // 4) Carve extra looping tunnels for complexity (drunkard walks)
+    const carveWalk=(sx,sy,len)=>{ let x=sx,y=sy; for(let i=0;i<len;i++){ this.carve(x,y); const r=rng.int(4); if(r===0&&x<w-2) x++; else if(r===1&&x>1) x--; else if(r===2&&y<h-2) y++; else if(y>1) y--; } };
+    let walkers=8; while(walkers--){ let x=2+rng.int(w-4), y=2+rng.int(h-4); if(!this.isWall(x,y)) carveWalk(x,y, 40+rng.int(80)); }
+
+    // 5) Light erosion to add nooks
+    step(5,5);
+
+    // 6) Frame
+    for(let x=0;x<w;x++){ cells[id2(x,0)]=1; cells[id2(x,h-1)]=1; }
+    for(let y=0;y<h;y++){ cells[id2(0,y)]=1; cells[id2(w-1,y)]=1; }
+
+    // 7) Ensure cavern is reasonably sized (> 24% of map). If not, expand floors.
+    const total = w*h; const minRatio = 0.24;
+    const countFloors = ()=> cells.reduce((a,c)=>a+(c===0?1:0),0);
+    let floors=countFloors();
+    if(floors/total < minRatio){
+      for(let pass=0; pass<8 && floors/total < minRatio; pass++){
+        const copy=cells.slice();
+        for(let y=1;y<h-1;y++){
+          for(let x=1;x<w-1;x++){
+            const i=id2(x,y); if(copy[i]===0) continue;
+            let n=0; if(copy[id2(x+1,y)]===0) n++; if(copy[id2(x-1,y)]===0) n++; if(copy[id2(x,y+1)]===0) n++; if(copy[id2(x,y-1)]===0) n++;
+            if(n>=2) cells[i]=0;
+          }
+        }
+        for(let x=0;x<w;x++){ cells[id2(x,0)]=1; cells[id2(x,h-1)]=1; }
+        for(let y=0;y<h;y++){ cells[id2(0,y)]=1; cells[id2(w-1,y)]=1; }
+        floors=countFloors();
+      }
+    }
+  }
+}
+
+/**********************
+ * FOV (shadowcasting) *
+ **********************/
+function computeFOV(map, ox, oy, radius=12){
+  const vis=new Set(); vis.add(oy*map.w+ox);
+  function castRow(row,start,end,xx,xy,yx,yy){ if(start<end) return; let r=row; while(r<=radius){ let dx=-r-1, dy=-r, blocked=false; while(dx<=0){ dx++; const X=ox+dx*xx+dy*xy, Y=oy+dx*yx+dy*yy; const ldx=-dx, ldy=dy; const lSlope=(ldx-0.5)/(ldy+0.5), rSlope=(ldx+0.5)/(ldy-0.5); if(!(X>=0&&Y>=0&&X<map.w&&Y<map.h) || start<rSlope) { continue; } if(end>lSlope){ break; } const idx=Y*map.w+X; if((dx*dx+dy*dy)<=radius*radius){ vis.add(idx); } if(map.isWall(X,Y)){ if(!blocked){ blocked=true; start=rSlope; castRow(r+1,start,end,xx,xy,yx,yy);} else { end=lSlope; } } else { if(blocked){ blocked=false; start=rSlope;} } } r++; } }
+  castRow(1,1.0,0.0, 1,0,0,1); castRow(1,1.0,0.0, 1,0,0,-1); castRow(1,1.0,0.0,-1,0,0,1); castRow(1,1.0,0.0,-1,0,0,-1);
+  castRow(1,1.0,0.0, 0,1,1,0); castRow(1,1.0,0.0, 0,1,-1,0); castRow(1,1.0,0.0, 0,-1,1,0); castRow(1,1.0,0.0,  0,-1,-1,0);
+  return vis;
+}
+
+/**********************
+ * ENTITIES & SYSTEMS  *
+ **********************/
+class Entity{ constructor(x,y,t){ this.x=x; this.y=y; this.type=t; this.hp=1; this.cool=0; this.tx=x; this.ty=y; } }
+
+class Game{
+  constructor(){
+    this.canvas=document.getElementById('screen');
+    this.ctx=this.canvas.getContext('2d');
+    this.ctx.font=`${TILE_H}px 'Share Tech Mono', monospace`;
+    this.ctx.textBaseline='top';
+    this.levelIndex=0; this.rng=new RNG();
+    this.keys=new Set();
+    this.last=0; this.lastMove=0; this.lastEnemy=0; this.lastShot=0;
+    this.flashT=0; this.flashColor=null; this.glitchT=0;
+    this.resetLevel();
+    this.bindInput();
+    requestAnimationFrame(this.loop.bind(this));
+  }
+
+  resetLevel(){
+    const spec=LEVELS[this.levelIndex];
+    this.map=new Map(GRID_W,GRID_H); this.map.generate(this.rng.int(1e9));
+    // find a floor cell for player
+    let px=1,py=1; do{ px=2+rand(this.map.w-4); py=2+rand(this.map.h-4);} while(this.map.isWall(px,py));
+    this.player=new Entity(px,py,'jack');
+    this.entities=[this.player];
+
+    // enemies patrol: pick random floor waypoints
+    for(let i=0;i<spec.enemies;i++){
+      let ex=1,ey=1; do{ ex=rand(this.map.w); ey=rand(this.map.h);} while(this.map.isWall(ex,ey));
+      const e=new Entity(ex,ey,'enemy'); this.pickNewPatrol(e); this.entities.push(e);
+    }
+    // ensure at least one enemy starts near the player (within radius 8)
+    {
+      const near=(x,y)=>Math.abs(x-px)+Math.abs(y-py)<=8;
+      let hasNear=false; let nearIdx=-1;
+      for(let i=1;i<this.entities.length;i++){ const e=this.entities[i]; if(near(e.x,e.y)){ hasNear=true; nearIdx=i; break; } }
+      if(!hasNear && this.entities.length>1){
+        let fx=px, fy=py, found=false;
+        for(let r=1;r<=8 && !found;r++){
+          for(const [ox,oy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+            const nx=px+ox*r, ny=py+oy*r;
+            if(this.map.inb(nx,ny) && !this.map.isWall(nx,ny)){ fx=nx; fy=ny; found=true; break; }
+          }
+        }
+        this.entities[1].x=fx; this.entities[1].y=fy; this.pickNewPatrol(this.entities[1]);
+      }
+    }
+
+    // diamonds
+    this.diamonds=new Set();
+    let d=0; while(d<spec.diamonds){ let dx=rand(this.map.w), dy=rand(this.map.h); if(!this.map.isWall(dx,dy)){ const idx=dy*this.map.w+dx; if(idx!==py*this.map.w+px && !this.diamonds.has(idx)){ this.diamonds.add(idx); d++; } } }
+
+    // ensure at least one diamond starts near the player (within radius 8)
+    {
+      const near=(x,y)=>Math.abs(x-px)+Math.abs(y-py)<=8;
+      let hasNear=false;
+      for(const idx of this.diamonds){ const dx=idx%this.map.w, dy=(idx/this.map.w)|0; if(near(dx,dy)){ hasNear=true; break; } }
+      if(!hasNear){
+        let fx=px, fy=py, found=false;
+        for(let r=1;r<=8 && !found;r++){
+          for(const [ox,oy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+            const nx=px+ox*r, ny=py+oy*r;
+            if(this.map.inb(nx,ny) && !this.map.isWall(nx,ny)){ fx=nx; fy=ny; found=true; break; }
+          }
+        }
+        const arr=[...this.diamonds]; if(arr.length){ this.diamonds.delete(arr[0]); }
+        this.diamonds.add(fy*this.map.w+fx);
+      }
+    }
+
+    // exit (locked until all diamonds)
+    let ex=px,ey=py,tries=0; do{ ex=2+rand(this.map.w-4); ey=2+rand(this.map.h-4); tries++; } while((Math.abs(ex-px)+Math.abs(ey-py)<24 || this.map.isWall(ex,ey)) && tries<2000); this.exit=ey*this.map.w+ex;
+
+    this.bullets=[]; this.seen=new Set(); this.sanity=100; this.ammo=24; this.lastDir=[1,0];
+
+    document.getElementById('levelName').textContent=spec.name;
+    this.updateHUD();
+    log(`[LEVEL ${spec.id}] ${spec.name} — Collect all memory fragments (♦) then reach >`);
+  }
+
+  pickNewPatrol(e){
+    let tx,ty; do{ tx=rand(this.map.w); ty=rand(this.map.h); } while(this.map.isWall(tx,ty));
+    e.tx=tx; e.ty=ty;
+  }
+
+  bindInput(){
+    window.addEventListener('keydown',(e)=>{ const k=e.key.toLowerCase(); if(['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d',' '].includes(k)) e.preventDefault(); this.keys.add(k); });
+    window.addEventListener('keyup',(e)=>{ this.keys.delete(e.key.toLowerCase()); });
+  }
+
+  canStep(x,y){ return this.map.inb(x,y) && !this.map.isWall(x,y); }
+  stepEntity(ent,dx,dy){ const nx=ent.x+dx, ny=ent.y+dy; if(this.canStep(nx,ny)){ ent.x=nx; ent.y=ny; return true; } return false; }
+
+  tryMovePlayer(){
+    let dx=0,dy=0; if(this.keys.has('arrowup')||this.keys.has('w')) dy=-1; else if(this.keys.has('arrowdown')||this.keys.has('s')) dy=1; if(this.keys.has('arrowleft')||this.keys.has('a')) dx=-1; else if(this.keys.has('arrowright')||this.keys.has('d')) dx=1;
+    if(dx||dy){ this.lastDir=[dx,dy]; this.stepEntity(this.player,dx,dy); }
+  }
+
+  shoot(){ if(this.ammo<=0) return; this.ammo--; const [dx,dy]=this.lastDir; this.bullets.push({x:this.player.x+dx*0.1,y:this.player.y+dy*0.1,dx,dy,life:140}); this.updateHUD(); }
+
+  updateBullets(dt){
+    const speed = BULLET_SPEED*dt; // tiles per frame
+    this.bullets=this.bullets.filter(b=>{
+      b.x+=b.dx*speed; b.y+=b.dy*speed; b.life--; const ix=Math.round(b.x), iy=Math.round(b.y);
+      if(!this.map.inb(ix,iy) || this.map.isWall(ix,iy) || b.life<=0) return false;
+      const hit=this.entities.find(e=>e.type==='enemy' && e.x===ix && e.y===iy);
+      if(hit){ hit.hp=0; this.entities=this.entities.filter(e=>e!==hit); this.flashT=12; return false; }
+      return true;
+    });
+  }
+
+  updateEnemies(){
+    for(const e of this.entities){
+      if(e.type!=='enemy') continue;
+      if(e.x===e.tx && e.y===e.ty) this.pickNewPatrol(e);
+      const dx = Math.sign(e.tx - e.x);
+      const dy = Math.sign(e.ty - e.y);
+      let moved = false;
+      if(Math.random() < 0.5){
+        moved = (dx!==0 && this.stepEntity(e,dx,0));
+        if(!moved && dy!==0) moved = this.stepEntity(e,0,dy);
+      } else {
+        moved = (dy!==0 && this.stepEntity(e,0,dy));
+        if(!moved && dx!==0) moved = this.stepEntity(e,dx,0);
+      }
+      if(!moved){ if(!this.stepEntity(e, (Math.random()<0.5?1:-1), 0)) this.stepEntity(e, 0, (Math.random()<0.5?1:-1)); if(Math.random()<0.3) this.pickNewPatrol(e); }
+      if(e.x===this.player.x && e.y===this.player.y){ this.onPlayerHit(); }
+    }
+  }
+
+  onPlayerHit(){
+    log('CAUGHT — GAME OVER');
+    this.resetLevel();
+  }
+
+  collectAtPlayer(){
+    const idx=this.player.y*this.map.w+this.player.x;
+    if(this.diamonds.has(idx)){
+      this.diamonds.delete(idx);
+      this.sanity=clamp(this.sanity+5,0,100);
+      this.flashT=12; this.flashColor='#ffd400';
+      this.glitchT=Math.max(this.glitchT, 24);
+      this.updateHUD();
+      if(this.diamonds.size===0) log('All memory fragments collected — Exit unlocked.');
+    }
+  }
+
+  render(){
+    const ctx=this.ctx, spec=LEVELS[this.levelIndex], pal=PALETTES[spec.key];
+    ctx.imageSmoothingEnabled=false; ctx.fillStyle=pal.bg; ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
+    const vis=computeFOV(this.map,this.player.x,this.player.y,12); for(const i of vis) this.seen.add(i);
+
+    for(let y=0;y<this.map.h;y++){
+      for(let x=0;x<this.map.w;x++){
+        const i=y*this.map.w+x, seen=this.seen.has(i), visible=vis.has(i), isWall=this.map.isWall(x,y);
+        if(isWall){ const fg=visible?Glyphs.wall.fg:'#3a424a'; this.drawChar(wallGlyph(x,y,spec.key),x*TILE_W,y*TILE_H,fg); }
+        else {
+          if(visible){ this.drawChar('.',x*TILE_W,y*TILE_H,'#44505a'); }
+          else if(seen){ this.drawChar('·',x*TILE_W,y*TILE_H,'#2a323a'); }
+          if(this.diamonds.has(i)) this.drawCharExact(Glyphs.diamond.ch,x*TILE_W,y*TILE_H,Glyphs.diamond.fg);
+          if(this.exit===i) this.drawCharExact(Glyphs.exit.ch,x*TILE_W,y*TILE_H, this.diamonds.size===0? '#e8f1ff' : '#6b7785');
+        }
+      }
+    }
+
+    // entities — draw ALL enemies regardless of FOV so they're always visible
+    for(const e of this.entities){
+      if(e.type==='jack') this.drawCharExact(Glyphs.jack.ch, e.x*TILE_W, e.y*TILE_H, Glyphs.jack.fg);
+      else this.drawCharExact(Glyphs.enemy.ch, e.x*TILE_W, e.y*TILE_H, Glyphs.enemy.fg);
+    }
+    // bullets
+    for(const b of this.bullets){ const ix=Math.round(b.x), iy=Math.round(b.y); const i=iy*this.map.w+ix; if(!vis.has(i)) continue; this.drawChar(Glyphs.bullet.ch, ix*TILE_W, iy*TILE_H, Glyphs.bullet.fg); }
+
+    // violent glitch speckles when active
+    if(this.glitchT>0){
+      const n = 120; // speckles per frame
+      ctx.globalAlpha = 0.9;
+      for(let k=0;k<n;k++){
+        ctx.fillStyle = (Math.random()<0.5)? '#ffd400' : '#ffee55';
+        const px = Math.random()*this.canvas.width;
+        const py = Math.random()*this.canvas.height;
+        ctx.fillRect(px, py, 1, 1);
+      }
+      ctx.globalAlpha = 1;
+      this.glitchT--;
+    }
+
+    // screen flash (red/white/yellow)
+    if(this.flashT>0){
+      this.flashT--;
+      ctx.globalAlpha=0.10;
+      ctx.fillStyle=this.flashColor || pal.flash || '#aa0000';
+      ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
+      ctx.globalAlpha=1;
+      if(this.flashT===0) this.flashColor=null;
+    }
+  }
+
+  drawChar(ch,x,y,fg){ // tinted + corruption for terrain/bullets only
+    const spec=LEVELS[this.levelIndex]; const pal=PALETTES[spec.key];
+    this.ctx.fillStyle=this.tintColor(fg,pal.tint);
+    let glyph=ch; const corruptBoost = (this.glitchT>0? 0.25: 0); const corruptChance=(100-this.sanity)/100*0.08 + corruptBoost;
+    if(Math.random()<corruptChance){ glyph=choice(['▒','▓','█','░','?','!','@','#']); }
+    this.ctx.fillText(glyph,x,y);
+  }
+  drawCharExact(ch,x,y,fg){ // no tint, no corruption — for player/enemies/objectives
+    this.ctx.fillStyle=fg;
+    this.ctx.fillText(ch,x,y);
+  }
+  tintColor(color,t){ const r=parseInt(color.slice(1,3),16), g=parseInt(color.slice(3,5),16), b=parseInt(color.slice(5,7),16); const nr=clamp(Math.round(r*t[0]),0,255), ng=clamp(Math.round(g*t[1]),0,255), nb=clamp(Math.round(b*t[2]),0,255); return `#${nr.toString(16).padStart(2,'0')}${ng.toString(16).padStart(2,'0')}${nb.toString(16).padStart(2,'0')}`; }
+
+  updateHUD(){
+    document.getElementById('sanityBar').style.width=`${this.sanity}%`;
+    document.getElementById('sanityPct').textContent=`${this.sanity|0}%`;
+    const spec=LEVELS[this.levelIndex];
+    document.getElementById('diamonds').textContent=`${spec.diamonds - this.diamonds.size}/${spec.diamonds}`;
+    document.getElementById('exitState').textContent=this.diamonds.size===0? 'Unlocked' : 'Locked';
+  }
+
+  loop(ts){
+    const dt = this.last ? (ts - this.last) : 16; this.last = ts;
+    this.sanity = clamp(this.sanity - (SANITY_DRAIN_PS * dt / 1000), 0, 100);
+    if(this.sanity<=0){ log('SANITY COLLAPSE. Restarting level.'); this.resetLevel(); return; }
+
+    if(ts - this.lastMove >= MOVE_COOLDOWN){ this.tryMovePlayer(); this.collectAtPlayer(); this.lastMove = ts; }
+    if(this.keys.has(' ')){
+      if(ts - this.lastShot >= BULLET_COOLDOWN){ this.shoot(); this.lastShot = ts; }
+    }
+    if(ts - this.lastEnemy >= ENEMY_COOLDOWN){ this.updateEnemies(); this.lastEnemy = ts; }
+
+    this.updateBullets(dt);
+
+    const pidx=this.player.y*this.map.w+this.player.x;
+    if(pidx===this.exit && this.diamonds.size===0){
+      this.levelIndex = (this.levelIndex+1) % LEVELS.length; log('Extraction point reached. Descending…'); this.resetLevel(); return;
+    }
+
+    this.updateHUD();
+    this.render();
+    requestAnimationFrame(this.loop.bind(this));
+  }
+}
+
+/**********************
+ * BOOT & API          *
+ **********************/
+const game=new Game();
+window.Kommando={ setPalette(key){ const idx=LEVELS.findIndex(l=>l.key===key); if(idx>=0){ game.levelIndex=idx; game.resetLevel(); } } };
+
+/**********************
+ * SELF-TESTS          *
+ **********************/
+(function runTests(){
+  try{
+    console.assert(typeof wallGlyph==='function','wallGlyph should be defined');
+    const m=new Map(60,30); console.assert(typeof m.generate==='function','Map.generate should exist'); m.generate(12345);
+    const walls=m.cells.filter(c=>c===1).length, floors=m.cells.length-walls; console.assert(walls>0 && floors>0,'Map should contain both walls and floors');
+    const w=m.w,h=m.h; const seen=new Set(); let biggest=0; for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++) if(!m.isWall(x,y) && !seen.has(y*w+x)){ let area=0; const q=[[x,y]]; seen.add(y*w+x); while(q.length){ const [cx,cy]=q.pop(); area++; for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){ const nx=cx+dx, ny=cy+dy, id=ny*w+nx; if(nx>0&&ny>0&&nx<w-1&&ny<h-1 && !m.isWall(nx,ny) && !seen.has(id)){ seen.add(id); q.push([nx,ny]); } } } biggest=Math.max(biggest,area); }
+    console.assert(biggest> (w*h*0.20), 'Largest cavern should be reasonably sized');
+    // Enemy/diamond presence smoke tests
+    const g=new Game();
+    console.assert(g.entities.filter(e=>e.type==='enemy').length>=LEVELS[0].enemies, 'Should spawn enemies for level spec');
+    console.assert(g.diamonds.size===LEVELS[0].diamonds, 'Should spawn correct number of memory fragments');
+    console.assert(typeof g.exit==='number' && g.exit>=0, 'Exit should be placed');
+    log('TEST OK: wallGlyph, Map.generate, cavern connectivity/size, spawns.');
+  }catch(err){ console.error(err); log('TEST FAIL: '+(err&&err.message?err.message:err)); }
+})();
+</script>
+</body>
+</html>
