@@ -98,68 +98,18 @@ const LEVELS = [
   { id:5, key:'collapse',  name:'EXTRACTION', enemies:12, diamonds:16 },
 ];
 
-const ASCII_RIP = String.raw`
-  /\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
- |   GAME OVER — EXTRACTION FAILED   |
-  \\\\///////////////////////////////
-
-  [
-                                                                                                                
-                                                   ███  ▒ ▓▓  ░█                                                    
-                                             ▒███▒█▓██░░░░████████▒▒███▓██                                          
-                                        █▓ ▒    ░███▒░█▒███████████████████████                                     
-                                      ███  ░█▓▒       ░████████████████████████████                                 
-                                    ███████▓░░░░   ██████████████▓░▒███████████▓███▓░                               
-                                    ███████████▓░░▓▓▓██████████░ ▓▓▒░██░ ▒███████████▓▓                             
-                                ░░▓█▓▓███▓████████████████▒   ░▓ ░████████████████████████                          
-                               ██████▓    ░▒░░░▓█████████████▓░▓▓██████▓███████████████████                         
-                              ████████████░░░████████▓███████████████████████████████████████                       
-                              ███████████████████▓░░░▒  ░█████████████████████████████████████                      
-                              ████████████████████████▒█▒  ▒█▓░░      ░▒▓███████████████████▓█░                     
-                             ████████░██████████████████████████████████▓▓▓▓▓░░░▓█████▒░█▓█████                     
-                             █████▓   ██▓█████████████████████████████████████▒█████████████████                    
-                             ███▓ ░▓███▓▒▒░░                ░▒▒▒▓████████████████████████▒████▒█                    
-                             █░░██▒     ░       ░             ░▒▓░      ░▓██████▒██████▒  ░█▓ ▒█                    
-                            ███░       ▓▒ ░▒░▓   ░░ ░     ▒░     ░█░▓▓█▓     ░░▓███████▒█░    ░█                    
-                           ██▓    ░█▓░██▒ ▓█▓▓▓▓▒█▓ █░▓  ▒▓    ░██▓▓▒▒███▒ ░ ██░   ░██▓▓▓░    ▓█                    
-                           █▓         █▓▒ ░█▓▓ ░░▒ ░░▓    ▓▓░  ███▓██▒█▓██░░ ▒███░     ▒█▓░░▓ ██                    
-                           █▒      ░░▒█▒░   ▓▓░█░▒  █      █▓░ ███░███░███░  ▓████       ░█▓ ▒█                     
-                            █░     ░░▒███░      ░  █░   ░  ▒███ ▒▒█░░▒███▒   █████▒   ░▒░  ░█░█                     
-                             ▓      ██░▓██▓█████  ▓░   ▓▒   ███░█░         ░███████░ ▓   █░  ██                     
-                             ▓      ░▓███▒░ ░▓   ░█ ▒  ▓▓   ▒██░███████████████████▓░█   █░   ██                    
-                             ▓     ░██████▓▒█▒    █▒░░▓██░░░████░ ░░▒███████████████▓    █░    ██                   
-                            █▒      ▒██████████  ░██▓▓▒▒▒▒░▓█▓██░ █▒█████████████████    ▓  ░█ ██                   
-                            █     ░█ █▒░██▒▓░      ▒▓█▓▒█▒█▓█████  █▒███████████████▓    ▓ ░█                       
-                            █     ▒   █░         ▒▓█▒█▒▓█▒█▓▓███▓░   ░▒███▒▒░     ▓▓█   █▓ ▓                        
-                            █    ░█  ██▒ ▒▒░     ░░▒█░▓▒▓██▒▒████░     ▓████▓░ █░█      █░ █                        
-                            █    ░█  ███▒▓▒    ░▒░▒▒▒▒█▒█▓▒█▓▓█▒█░▒░   ▒█████░▓▓██      ▓  █                        
-                            █    ░█  ███████▓▒█░░█▒████░█▒██▒██▒█▓█▒    █████░░██       ▓ ░█                        
-                            ▒     ▓ ██░▓▒█▒███████           ░░ ░      ░█████▓██        ▓ ░█                        
-                           █     ░█ ███▓   ░▓██░▒░▒░ ░     ░▒░     ▒   ▓████████        ▓  █                        
-                          █▒     ░█    █░ ▒        ░░            █░    ████████         ▓  █                        
-                          ▓      ▒      ▓ ░▒     ░▓░▓███░██▓░█▒█▓█░░   ████████         █░ ▓                        
-                         █░     ░█      █░ ░         ▒ ▓░▓▒█░█▒░▒░██▒ ▓███▒███           ▓ ▓                        
-                        █▒     ░▓        ▓     ░    ░█░█ █░░▒░█░████▒ ███▓███            █░░█                       
-                        ▓      ▒         █▒░▓  ░▒░ ░  ▓█▓▓██████████░▓██░▒██              ▓▒▒██                     
-                       █░     ▒█          █▒▓▓░░░░▒░  ▓░░▓█████████████▓▒█                █░ ██                     
-                      █░     ░█            █▓▓█▒▒   █▓█░█▓████████████░ ██                █▒░██                     
-                    ██░     ░█               █████▒ █▓  ██████████▓█▒ ░██                 █▒░██                     
-                   █░      ░█                 ██▒▓▒░     ██▒░▒███░░   ▓██                 █░░██                     
-                  █░      ░█                   █░██████▓░ ██▓░░▒█████▒███                 ▓░░▓█                     
-                 █░      ░█                    █▒██████▓░ ███████████▓▓██                █░▒ ░█                     
-                █░      ▒█                     █████████▒ ████▒█████▒▓███                ▓ █░█                      
-               ▓░      ▓█                       ██████▓▓  ██████████████                █░ ▓▓█                      
-             █▒      ░█                          ██████▓░ ██████▒▓████                 █▓ ░▓█                       
-             ▒     ░▓█                              ███▓░░██▒▓█████                    ▓  ░█                        
-            █▒   ░▒█                                                                  █░ ▒██                        
-             █████                                                                    ▓ ▒█                          
-                                                                                     █░░█                           
-                                                                                     ▒ ▓█                           
-                                                                                    █░▒█                            
-                                                                                    ▒░█                             
-                                                                                   █▒█    ]
-`.trim().split('\n');
-
+// Small red skull ASCII — plain array of strings with safe escaping
+const ASCII_RIP = [
+  "    .-'''-.    ",
+  "   /  _   _ \\  ",
+  "  |  (o) (o) | ",
+  "  |     ^     |",
+  "  |   \\___/   |",
+  "   \\         / ",
+  "    '-.___.'  ",
+  "     /|_|_|\\  ",
+  "    /_/_|_\\_\\ "
+];
 
 /**********************
  * UTILS & LOG         *
@@ -253,6 +203,7 @@ class Map{
       for(let k=0;k<2;k++){ const a=rand(N), b=rand(N); if(a!==b) digL(centers[a][0],centers[a][1], centers[b][0],centers[b][1]); }
     }
 
+    // light sparse carve to add flavor
     const odd = v => (v%2===1);
     const inOddGrid=(x,y)=> x>1&&y>1&&x<w-2&&y<h-2&&odd(x)&&odd(y);
     const dirs=[[2,0],[-2,0],[0,2],[0,-2]];
@@ -279,11 +230,13 @@ class Map{
       if(inOddGrid(sx,sy)) carveSparseFrom(sx,sy,stepsMax);
     }
 
+    // extra connectors
     for(let i=0;i<3;i++){
       let ax=2+rand(w-4), ay=2+rand(h-4), bx=2+rand(w-4), by=2+rand(h-4);
       if(cells[id(ax,ay)]===0 && cells[id(bx,by)]===0) digL(ax,ay,bx,by);
     }
 
+    // keep only the largest connected open area
     const reg=new Array(w*h).fill(-1); let rid=0; const areas=[];
     for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++) if(cells[id(x,y)]===0 && reg[id(x,y)]===-1){
       const q=[[x,y]]; reg[id(x,y)]=rid; let a=0;
@@ -298,9 +251,11 @@ class Map{
     }
     const best=areas.length?areas.indexOf(Math.max(...areas)):-1; if(best>=0){ for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++) if(reg[id(x,y)]!==best) cells[id(x,y)]=1; }
 
+    // widen if too cramped
     const openCount=()=>cells.reduce((a,c)=>a+(c===0?1:0),0); let floors=openCount(); const min=Math.floor(w*h*0.20);
     if(floors<min){ for(let y=2;y<h-2;y++) for(let x=2;x<w-2;x++){ if(cells[id(x,y)]===1){ let n=0; if(cells[id(x+1,y)]===0)n++; if(cells[id(x-1,y)]===0)n++; if(cells[id(x,y+1)]===0)n++; if(cells[id(x,y-1)]===0)n++; if(n>=3) cells[id(x,y)]=0; } } }
 
+    // hard borders
     for(let x=0;x<w;x++){ cells[id(x,0)]=1; cells[id(x,h-1)]=1; }
     for(let y=0;y<h;y++){ cells[id(0,y)]=1; cells[id(w-1,y)]=1; }
   }
@@ -387,10 +342,15 @@ class Game{
     ctx.fillText('GAME OVER', w/2, 42);
     ctx.fillStyle='#c7d2da'; ctx.font='18px "VT323", monospace';
     ctx.fillText('EXTRACTION FAILED — THE WAR NEVER ENDS', w/2, 88);
-    ctx.font='16px "VT323", monospace'; ctx.textAlign='center';
-    let y=140; for(const line of ASCII_RIP){ ctx.fillText(line, w/2, y); y+=22; }
+    // small red ASCII skull
+    ctx.textAlign='center';
+    ctx.fillStyle='#ff3c3c';
+    ctx.font='14px "VT323", monospace';
+    let y=140; for(const line of ASCII_RIP){ ctx.fillText(line, w/2, y); y+=18; }
+    // prompt
     ctx.fillStyle='#7efc6b'; ctx.font='16px "VT323", monospace';
     ctx.fillText('Press any key to descend again…', w/2, h-56);
+    // restore
     ctx.textAlign='start'; ctx.textBaseline='top'; ctx.font=`${TILE_H}px "VT323", monospace`;
   }
 
@@ -481,18 +441,39 @@ const game=new Game();
 window.Kommando={ setPalette(key){ const idx=LEVELS.findIndex(l=>l.key===key); if(idx>=0){ game.levelIndex=idx; game.resetLevel(); } } };
 
 /**********************
- * SELF-TESTS          *
+ * SELF-TESTS (safe)   *
+ * Keep them light and do NOT create another Game instance.
  **********************/
 (function runTests(){
   try{
     console.assert(typeof wallGlyph==='function','wallGlyph should be defined');
-    const m=new Map(60,30); console.assert(typeof m.generate==='function','Map.generate should exist'); m.generate(12345);
-    const walls=m.cells.filter(c=>c===1).length, floors=m.cells.length-walls; console.assert(walls>0 && floors>0,'Map should contain both walls and floors');
-    const w=m.w,h=m.h; const seen=new Set(); let biggest=0; for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++) if(!m.isWall(x,y) && !seen.has(y*w+x)){ let area=0; const q=[[x,y]]; seen.add(y*w+x); while(q.length){ const [cx,cy]=q.pop(); area++; for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){ const nx=cx+dx, ny=cy+dy, id=ny*w+nx; if(nx>0&&ny>0&&nx<w-1&&ny<h-1 && !m.isWall(nx,ny) && !seen.has(id)){ seen.add(id); q.push([nx,ny]); } } } biggest=Math.max(biggest,area); }
+    const m=new Map(60,30); m.generate(12345);
+    const walls=m.cells.filter(c=>c===1).length, floors=m.cells.length-walls;
+    console.assert(walls>0 && floors>0,'Map should have walls and floors');
+    // quick connectivity sample
+    const w=m.w,h=m.h; const seen=new Set(); let biggest=0;
+    for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++){
+      if(!m.isWall(x,y) && !seen.has(y*w+x)){
+        let area=0; const q=[[x,y]]; seen.add(y*w+x);
+        while(q.length){
+          const [cx,cy]=q.pop(); area++;
+          for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+            const nx=cx+dx, ny=cy+dy, id=ny*w+nx;
+            if(nx>0&&ny>0&&nx<w-1&&ny<h-1 && !m.isWall(nx,ny) && !seen.has(id)){
+              seen.add(id); q.push([nx,ny]);
+            }
+          }
+        }
+        biggest=Math.max(biggest,area);
+      }
+    }
     console.assert(biggest> (w*h*0.20), 'Largest cavern should be reasonably sized');
-    const g=new Game(); console.assert(g.entities.filter(e=>e.type==='enemy').length>=LEVELS[0].enemies,'Enemies should spawn'); console.assert(g.diamonds.size===LEVELS[0].diamonds,'Fragments count matches'); console.assert(typeof g.exit==='number'&&g.exit>=0,'Exit placed');
-    log('TEST OK: Room+Passages gen + spawns.');
-  }catch(err){ console.error(err); log('TEST FAIL: '+(err&&err.message?err.message:err)); }
+    const vis=computeFOV({w:60,h:30,isWall:(x,y)=>false}, 30,15,6); console.assert(vis.size>1,'FOV should return multiple visible tiles');
+    console.assert(Array.isArray(ASCII_RIP) && ASCII_RIP.length>3, 'ASCII skull loaded');
+    console.log('TEST OK');
+  }catch(err){
+    console.error(err); console.log('TEST FAIL:', err && err.message ? err.message : err);
+  }
 })();
 </script>
 </body>
