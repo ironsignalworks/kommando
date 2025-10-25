@@ -1,110 +1,101 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Fog Of War — Real-Time Caverns v0.3.6</title>
-<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
-<link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
-<style>
-  :root{ --bg:#000; --ink:#e4e7ea; --hud:#0a0d10; --accent:#7efc6b; --danger:#ff5050; }
-  html,body{height:100%}
-  body{margin:0; background:var(--bg); color:var(--ink); font-family:'VT323', ui-monospace, Menlo, Consolas, monospace; overflow:hidden;}
-  .app{display:grid; grid-template-columns:minmax(0,1fr) 320px; grid-template-rows:100vh; gap:8px; height:100vh; margin:0; padding:8px; max-width:none; box-sizing:border-box;}
-  .view{position:relative; background:#050607; border:1px solid #111; border-radius:10px; overflow:hidden; height:100%; min-height:0;}
-  canvas{display:block; width:100%; height:100%; image-rendering:pixelated; box-sizing:border-box}
-  .panel{background:linear-gradient(180deg,#0a0f14,#070a0f); border:1px solid #111; border-radius:10px; padding:12px; display:flex; flex-direction:column; min-height:0; height:100%;}
-  .panel, .panel * { font-family:'VT323', ui-monospace, Menlo, Consolas, monospace; }
-  .panel .logo { font-family:'Share Tech Mono', ui-monospace, Menlo, Consolas, monospace !important; }
-  .row{display:flex; align-items:center; justify-content:space-between; gap:8px; margin:6px 0}
-  .meter{height:8px; background:#111; border-radius:999px; overflow:hidden}
-  .meter>i{display:block; height:100%; background:linear-gradient(90deg,#ff3c3c,#ff9f3c)}
-  .pill{display:inline-block; padding:4px 8px; border:1px solid #222; border-radius:999px; margin:2px; font-size:11px}
-  .kbd{background:#0e1217; border:1px solid #1b2330; padding:2px 6px; border-radius:6px}
-  .note{font-size:12px; opacity:.75}
-  .logo{font-family:'Share Tech Mono',ui-monospace,monospace !important;font-size:4px;line-height:4px;letter-spacing:0;white-space:pre;display:block;color:var(--ink);opacity:.9;margin:2px 0 6px 0;overflow:hidden;} 
-</style>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>KOMMANDO — Opaque Logo + Paranoid Type</title>
+
+  <!-- Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Courier+Prime:wght@400&family=Special+Elite&display=swap" rel="stylesheet">
+
+  <style>
+    :root{
+      --bg:#000;
+
+      /* timing */
+      --spawn-ms: 2200;     /* drip build */
+      --sim-ms:   1800;     /* build end -> fade skull + paint */
+      --ansi-ms:  1600;     /* skull type-in speed */
+      --neon-ms:  1800;     /* neon shower duration after reveal */
+
+      /* ink look (light) */
+      --max-particles: 200;
+      --gutter: 24;
+
+      --fade-alpha: 0.010;  /* build-phase decay inside mask */
+      --red-core:   #b30000;/* final solid logo */
+      --ink-a:      rgba(210,0,0,0.70);
+      --ink-b:      rgba(120,0,0,0.55);
+      --ink-tail:   rgba(90,0,0,0.55);
+      --ink-add:    rgba(255,80,80,0.16);
+
+      /* physics */
+      --grav: 0.050;
+      --drag: 0.990;
+      --stick-x: 0.92;
+      --stick-y: 0.86;
+      --wander: 0.05;
+      --edge-bleed: 0.22;
+
+      /* clears */
+      --fadeout-alpha: 1.22; /* clears paint after build */
+      --neon-clear:    1.30; /* clears neon each frame */
+
+      /* skull fade-out speed after reveal */
+      --skull-fade-alpha: 0.20; /* per frame */
+    }
+
+    html,body{
+      height:100%; margin:0; background:var(--bg); color:#cfcfcf;
+      font-family:'Share Tech Mono', monospace;
+      display:flex; align-items:center; justify-content:center; overflow:hidden;
+    }
+    .wrap{
+      width:min(1200px,96vw); height:min(720px,92vh);
+      position:relative; background:#060606; box-shadow:0 0 0 1px #111 inset;
+    }
+
+    /* Stacking: skull under, logo over, paint/top effects above logo, type on top */
+    canvas{ position:absolute; inset:0; display:block; image-rendering:pixelated; }
+    #ansi{  z-index:0 }  /* skull */
+    #logo{  z-index:1 }  /* final opaque wordmark */
+    #paint{ z-index:2 }  /* drips / neon */
+    #type{  z-index:3 }  /* paranoid caption */
+    #hint{
+      position:absolute; left:50%; bottom:10px; transform:translateX(-50%);
+      font-size:12px; letter-spacing:.06em; opacity:.85; z-index:4; user-select:none;
+      text-shadow:0 0 6px rgba(255,0,0,.25);
+    }
+  </style>
 </head>
 <body>
-  <div class="app">
-    <div class="view">
-      <canvas id="screen" width="960" height="576"></canvas>
-    </div>
-    <aside class="panel">
-      <pre class="logo">█████   ████    ███████    ██████   ██████ ██████   ██████   █████████   ██████   █████ ██████████      ███████
-▒▒███   ███▒   ███▒▒▒▒▒███ ▒▒██████ ██████ ▒▒██████ ██████   ███▒▒▒▒▒███ ▒▒██████ ▒▒███ ▒▒███▒▒▒▒███   ███▒▒▒▒▒███
- ▒███  ███    ███     ▒▒███ ▒███▒█████▒███  ▒███▒█████▒███  ▒███    ▒███  ▒███▒███ ▒███  ▒███   ▒▒███ ███     ▒▒███
- ▒███████    ▒███      ▒███ ▒███▒▒███ ▒███  ▒███▒▒███ ▒███  ▒███████████  ▒███▒▒███▒███  ▒███    ▒███▒███      ▒███
- ▒███▒▒███   ▒███      ▒███ ▒███ ▒▒▒  ▒███  ▒███ ▒▒▒  ▒███  ▒███▒▒▒▒▒███  ▒███ ▒▒██████  ▒███    ▒███▒███      ▒███
- ▒███ ▒▒███  ▒▒███     ███  ▒███      ▒███  ▒███      ▒███  ▒███    ▒███  ▒███  ▒▒█████  ▒███    ███ ▒▒███     ███
- █████ ▒▒████ ▒▒▒███████▒   █████     █████ █████     █████ █████   █████ █████  ▒▒█████ ██████████   ▒▒▒███████▒
-▒▒▒▒▒   ▒▒▒▒    ▒▒▒▒▒▒▒    ▒▒▒▒▒     ▒▒▒▒▒ ▒▒▒▒▒     ▒▒▒▒▒ ▒▒▒▒▒   ▒▒▒▒▒ ▒▒▒▒▒    ▒▒▒▒▒ ▒▒▒▒▒▒▒▒▒▒      ▒▒▒▒▒▒▒</pre>
-      <div class="row"><strong>Fog Of War</strong><span class="pill" id="build">v0.3.6</span></div>
-      <div class="row"><span>Level</span><span id="levelName">—</span></div>
-      <div class="row"><span>Sanity</span><div class="meter" style="width:180px"><i id="sanityBar" style="width:100%"></i></div><span id="sanityPct">100%</span></div>
-      <div class="row"><span>Memory Fragments</span><span id="diamonds">0/0</span></div>
-      <div class="row"><span>Exit</span><span id="exitState">Locked</span></div>
-      <div class="row note">Move <span class="kbd">WASD</span> / Arrow Keys · Shoot <span class="kbd">Space</span></div>
-    </aside>
+  <div class="wrap" id="wrap">
+    <canvas id="ansi"></canvas>   <!-- skull (under) -->
+    <canvas id="logo"></canvas>   <!-- opaque red logo -->
+    <canvas id="paint"></canvas>  <!-- drips / neon -->
+    <canvas id="type"></canvas>   <!-- typewriter -->
+    <div id="hint">SPACE / CLICK — replay</div>
   </div>
 
-<script>
-/**********************
- * CONFIG & CONSTANTS *
- **********************/
-const TILE_W = 16;           // px per cell (rendered)
-const TILE_H = 18;           // px per cell (rendered)
-const GRID_W = 60;           // columns
-const GRID_H = 30;           // rows
+  <!-- ASCII mask -->
+  <script type="text/plain" id="ascii-src">
 
-// realtime timing (ms)
-const MOVE_COOLDOWN   = 70;    // player step interval while key held
-const ENEMY_COOLDOWN  = 130;   // enemy step interval
-const BULLET_COOLDOWN = 140;   // fire rate
-const BULLET_SPEED    = 0.55;  // tiles per ms
-const SANITY_DRAIN_PS = 3;     // sanity drain per second
 
-// earthy brownish tile colors
-const COLOR_WALL = '#8a4b3a'; // rusty brick
-const COLOR_WALL_DARK = '#51302a';
-const COLOR_FLOOR_LIT = '#3c2a28';
-const COLOR_FLOOR_SEEN = '#2a1f1d';
 
-const Glyphs = {
-  floor: { ch:' ', fg:COLOR_FLOOR_LIT, bg:null },
-  wall:  { ch:'█', fg:COLOR_WALL, bg:null },
-  jack:  { ch:'@', fg:'#66aaff', bg:null },
-  enemy: { ch:'●', fg:'#ff3c3c', bg:null }, // solid tick
-  bullet:{ ch:'*', fg:'#ffd36e', bg:null },
-  diamond:{ ch:'♦', fg:'#00ff66', bg:null },
-  exit:  { ch:'>', fg:'#c7d2da', bg:null },
-  palm:  { ch:'♣', fg:'#37d065', bg:null }, // decorative jungle palm
-};
+    
+    █████   ████    ███████    ██████   ██████ ██████   ██████   █████████   ██████   █████ ██████████      ███████
+    ▒▒███   ███▒   ███▒▒▒▒▒███ ▒▒██████ ██████ ▒▒██████ ██████   ███▒▒▒▒▒███ ▒▒██████ ▒▒███ ▒▒███▒▒▒▒███   ███▒▒▒▒▒███
+     ▒███  ███    ███     ▒▒███ ▒███▒█████▒███  ▒███▒█████▒███  ▒███    ▒███  ▒███▒███ ▒███  ▒███   ▒▒███ ███     ▒▒███
+     ▒███████    ▒███      ▒███ ▒███▒▒███ ▒███  ▒███▒▒███ ▒███  ▒███████████  ▒███▒▒███▒███  ▒███    ▒███▒███      ▒███
+     ▒███▒▒███   ▒███      ▒███ ▒███ ▒▒▒  ▒███  ▒███ ▒▒▒  ▒███  ▒███▒▒▒▒▒███  ▒███ ▒▒██████  ▒███    ▒███▒███      ▒███
+     ▒███ ▒▒███  ▒▒███     ███  ▒███      ▒███  ▒███      ▒███  ▒███    ▒███  ▒███  ▒▒█████  ▒███    ███ ▒▒███     ███
+     █████ ▒▒████ ▒▒▒███████▒   █████     █████ █████     █████ █████   █████ █████  ▒▒█████ ██████████   ▒▒▒███████▒
+    ▒▒▒▒▒   ▒▒▒▒    ▒▒▒▒▒▒▒    ▒▒▒▒▒     ▒▒▒▒▒ ▒▒▒▒▒     ▒▒▒▒▒ ▒▒▒▒▒   ▒▒▒▒▒ ▒▒▒▒▒    ▒▒▒▒▒ ▒▒▒▒▒▒▒▒▒▒      ▒▒▒▒▒▒▒
+  </script>
 
-const PALETTES = {
-  reality:   { name:'Cold Blue',  tint:[0.95,0.85,0.85], bg:'#0b0a0a' },
-  jungle:    { name:'Jungle',     tint:[1.00,0.90,0.85], bg:'#0a0908' },
-  paranoia:  { name:'Paranoia',   tint:[1.05,0.80,0.75], bg:'#140b0b' },
-  psychosis: { name:'Psychosis',  tint:[0.95,0.95,0.95], bg:'#000', flash:'#9b0000' },
-  collapse:  { name:'Collapse',   tint:[1.0,1.0,1.0], bg:'#000' },
-};
-
-const LEVELS = [
-  { id:1, key:'reality',   name:'WELCOME HOME',   enemies:4, diamonds:8 },
-  { id:2, key:'jungle',    name:'THE JUNGLE RETURNS', enemies:6, diamonds:10 },
-  { id:3, key:'paranoia',  name:'TARGETS OF OPPORTUNITY', enemies:8, diamonds:12 },
-  { id:4, key:'psychosis', name:'THE RAID', enemies:10, diamonds:14 },
-  { id:5, key:'collapse',  name:'EXTRACTION', enemies:12, diamonds:16 },
-];
-
-/* GAME OVER art (kept same), split into lines */
-const ASCII_RIP = String.raw`
-  /\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
- |   GAME OVER — EXTRACTION FAILED   |
-  \\\\///////////////////////////////
-
-  [
-                                                                                                                
+  <!-- Skull block (raw; no ANSI escapes) -->
+  <script type="text/plain" id="skull-src">                                     
+                                                                                                                    
                                                    ███  ▒ ▓▓  ░█                                                    
                                              ▒███▒█▓██░░░░████████▒▒███▓██                                          
                                         █▓ ▒    ░███▒░█▒███████████████████████                                     
@@ -157,482 +148,420 @@ const ASCII_RIP = String.raw`
                                                                                      ▒ ▓█                           
                                                                                     █░▒█                            
                                                                                     ▒░█                             
-                                                                                   █▒█    ]
-`.trim().split('\n');
+                                                                                   █▒█                              
+                                                                                                                    
+                                                                                                                    
+                                                                                                                    
+  </script>
 
-
-/**********************
- * UTILS & LOG         *
- **********************/
-const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-const rand =(n)=>Math.floor(Math.random()*n);
-const choice=(arr)=>arr[rand(arr.length)];
-function log(msg){ try{ console.log('[LOG]', msg);}catch(_){} }
-
-/**********************
- * VISUAL HELPERS      *
- **********************/
-function wallGlyph(x,y,key){
-  const r=(x+y*3)%6;
-  return (r<2)?'█':(r<4)?'▓':'▒';
-}
-
-/**********************
- * FOV (shadowcasting) *
- **********************/
-function computeFOV(map, ox, oy, radius=12){
-  const vis=new Set(); vis.add(oy*map.w+ox);
-  function castRow(row,start,end,xx,xy,yx,yy){
-    if(start<end) return; let r=row;
-    while(r<=radius){
-      let dx=-r-1, dy=-r, blocked=false;
-      while(dx<=0){
-        dx++;
-        const X=ox+dx*xx+dy*xy, Y=oy+dx*yx+dy*yy;
-        const ldx=-dx, ldy=dy; const lSlope=(ldx-0.5)/(ldy+0.5), rSlope=(ldx+0.5)/(ldy-0.5);
-        if(!(X>=0&&Y>=0&&X<map.w&&Y<map.h) || start<rSlope) { continue; }
-        if(end>lSlope){ break; }
-        const idx=Y*map.w+X; if((dx*dx+dy*dy)<=radius*radius){ vis.add(idx); }
-        if(map.isWall(X,Y)){
-          if(!blocked){ blocked=true; start=rSlope; castRow(r+1,start,end,xx,xy,yx,yy); }
-          else { end=lSlope; }
-        } else if(blocked){ blocked=false; start=rSlope; }
+  <script>
+    (async function(){
+      const DPR = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
+      const wrap   = document.getElementById('wrap');
+      const ansiC  = document.getElementById('ansi');  const ansiCtx  = ansiC.getContext('2d'); // skull
+      const logoC  = document.getElementById('logo');  const logoCtx  = logoC.getContext('2d'); // final logo
+      const paintC = document.getElementById('paint'); const pctx     = paintC.getContext('2d', { alpha:true });
+      const typeC  = document.getElementById('type');  const typeCtx  = typeC.getContext('2d');
+  
+      const ASCII_LOGO = document.getElementById('ascii-src').textContent.replace(/\r/g,'');
+      const SKULL_RAW  = document.getElementById('skull-src').textContent;
+  
+      if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch(e){} }
+  
+      let w=0, h=0, gutter=14;
+      let maskData=null, mW=0, mH=0, logoBox=null, chW=0, chH=0, rows=0, cols=0, offX=0, offY=0, fontPx=0;
+  
+      const css = () => getComputedStyle(document.documentElement);
+      const MAX = () => parseInt(css().getPropertyValue('--max-particles')) || 1200;
+  
+      let particles=[], spawnUntil=0, stopAt=0, neonUntil=0, rafId=0, finalized=false;
+  
+      // phases: 0 BUILD, 1 FADE_PAINT, 2 NEON, 3 DONE
+      let phase = 0;
+  
+      // skull text layout
+      let skullLines=[], skullGeom=null, skullStart=0;
+  
+      // paranoid typewriter
+      const TYPE_TEXT='FOG OF WAR';
+  
+      function fitCanvas(cv){
+        const r = wrap.getBoundingClientRect();
+        cv.width  = Math.floor(r.width * DPR);
+        cv.height = Math.floor(r.height * DPR);
+        cv.style.width  = r.width + 'px';
+        cv.style.height = r.height + 'px';
       }
-      r++;
-    }
-  }
-  castRow(1,1.0,0.0, 1,0,0,1); castRow(1,1.0,0.0, 1,0,0,-1); castRow(1,1.0,0.0,-1,0,0,1); castRow(1,1.0,0.0,-1,0,0,-1);
-  castRow(1,1.0,0.0, 0,1,1,0); castRow(1,1.0,0.0, 0,1,-1,0); castRow(1,1.0,0.0, 0,-1,1,0); castRow(1,1.0,0.0,  0,-1,-1,0);
-  return vis;
-}
-
-/**********************
- * WORLD & MAP GEN — ROOMS & PASSAGES *
- **********************/
-class RNG{constructor(seed=Date.now()%1e9){this.s=seed>>>0;} next(){let x=this.s; x^=x<<13; x^=x>>>17; x^=x<<5; this.s=x>>>0; return this.s/0xFFFFFFFF;} int(n){return Math.floor(this.next()*n);} }
-
-class Map{
-  constructor(w,h){
-    const W=Math.max(5,Number.isFinite(w)?Math.floor(w):0);
-    const H=Math.max(5,Number.isFinite(h)?Math.floor(h):0);
-    this.w=W; this.h=H; this.cells=new Array(W*H).fill(1);
-  }
-  idx(x,y){return y*this.w+x;} inb(x,y){return x>=0&&y>=0&&x<this.w&&y<this.h;} isWall(x,y){return this.cells[this.idx(x,y)]===1;} carve(x,y){this.cells[this.idx(x,y)]=0;}
-  carveRect(x0,y0,x1,y1){ const xA=Math.max(1,Math.min(x0,x1)), xB=Math.min(this.w-2,Math.max(x0,x1)); const yA=Math.max(1,Math.min(y0,y1)), yB=Math.min(this.h-2,Math.max(y0,y1)); for(let y=yA;y<=yB;y++) for(let x=xA;x<=xB;x++) this.carve(x,y); }
-
-  generate(seed){
-    const rng=new RNG(seed); const w=this.w,h=this.h; const id=(x,y)=>y*w+x; const cells=this.cells;
-    for(let i=0;i<cells.length;i++) cells[i]=1;
-
-    const rooms=[]; const target=10; let attempts=0;
-    while(rooms.length<target && attempts<target*40){
-      attempts++;
-      const large = Math.random()<0.45;
-      const rw = large ? 10+rand(8) : 4+rand(4);
-      const rh = large ? 6+rand(5)  : 3+rand(3);
-      const rx = 2+rand(Math.max(2,w-rw-4));
-      const ry = 2+rand(Math.max(2,h-rh-4));
-      const rect={x:rx,y:ry,w:rw,h:rh,cx:rx+Math.floor(rw/2),cy:ry+Math.floor(rh/2)};
-      let overlaps=false; for(const r of rooms){ if(!(rect.x+rect.w+1<r.x || r.x+r.w+1<rect.x || rect.y+rect.h+1<r.y || r.y+r.h+1<rect.y)){ overlaps=true; break; } }
-      if(!overlaps){ rooms.push(rect); this.carveRect(rect.x,rect.y,rect.x+rect.w,rect.y+rect.h); }
-    }
-
-    const centers=rooms.map(r=>[r.cx,r.cy]);
-    function digL(ax,ay,bx,by){ let x=ax,y=ay; while(x!==bx){ x += (bx>x)?1:-1; cells[id(x,y)]=0; } while(y!==by){ y += (by>y)?1:-1; cells[id(x,y)]=0; } cells[id(bx,by)]=0; }
-    if(centers.length){
-      const N=centers.length; const used=new Array(N).fill(false); used[0]=true; let edges=0;
-      while(edges<N-1){
-        let bestA=-1,bestB=-1,bestD=1e9;
-        for(let a=0;a<N;a++) if(used[a]) for(let b=0;b<N;b++) if(!used[b]){
-          const dx=centers[a][0]-centers[b][0], dy=centers[a][1]-centers[b][1];
-          const d=dx*dx+dy*dy; if(d<bestD){ bestD=d; bestA=a; bestB=b; }
+  
+      function layout(){
+        [ansiC, logoC, paintC, typeC].forEach(fitCanvas);
+        const r = wrap.getBoundingClientRect();
+        w = r.width; h = r.height;
+  
+        [ansiCtx, logoCtx, pctx, typeCtx].forEach(ctx => {
+          ctx.setTransform(DPR,0,0,DPR,0,0);
+          ctx.globalCompositeOperation = 'source-over';
+          ctx.globalAlpha = 1;
+          ctx.clearRect(0,0,w,h);
+        });
+  
+        // --- ASCII mask metrics ---
+        const lines = ASCII_LOGO.split('\n');
+        rows = lines.length;
+        cols = Math.max(...lines.map(l=>l.length || 0));
+  
+        fontPx = Math.floor(Math.min(
+          w / Math.max(8, (cols + 2)),
+          h / Math.max(6, (rows + 0.9))
+        ));
+        fontPx = Math.max(12, Math.min(fontPx, 40));
+  
+        mW = Math.floor(w * DPR);
+        mH = Math.floor(h * DPR);
+        const mcv = document.createElement('canvas');
+        mcv.width = mW; mcv.height = mH;
+        const mctx = mcv.getContext('2d');
+        mctx.setTransform(DPR,0,0,DPR,0,0);
+        mctx.clearRect(0,0,w,h);
+        mctx.fillStyle = '#fff';
+        mctx.font = `${fontPx}px "Courier Prime","Share Tech Mono", monospace`;
+        mctx.textBaseline='top';
+  
+        chW = mctx.measureText('M').width;
+        chH = fontPx * 1.2;
+        const blockW = chW * cols;
+        const blockH = chH * rows;
+  
+        offX = Math.floor((w - blockW)/2);
+        offY = Math.floor((h - blockH)/2);
+  
+        for (let r=0;r<rows;r++){
+          const line = lines[r];
+          if (line && line.trim().length) mctx.fillText(line, offX, offY + r*chH);
         }
-        if(bestB===-1) break; used[bestB]=true; edges++;
-        digL(centers[bestA][0],centers[bestA][1], centers[bestB][0],centers[bestB][1]);
+        maskData = mctx.getImageData(0,0,mW,mH).data;
+  
+        logoBox = {x: offX, y: offY, w: blockW, h: blockH};
+  
+        // --- Skull placement (right of logo) ---
+        skullLines = SKULL_RAW.replace(/\r/g,'').split('\n');
+        const sRows = skullLines.length;
+        const sCols = skullLines.reduce((m,l)=>Math.max(m,l.length),0);
+  
+        const rightPad = 10, gutter = 14;
+        const rightAvailW = Math.max(0, w - (offX + logoBox.w + gutter) - rightPad);
+        const rightAvailH = h - 32;
+  
+        let sFontPx = Math.floor(Math.min(
+          (rightAvailW>0? rightAvailW : w/2) / Math.max(6,(sCols+1)),
+          rightAvailH / Math.max(6,(sRows+0.5))
+        ));
+        sFontPx = Math.max(8, Math.min(sFontPx, 28));
+        ansiCtx.font = `${sFontPx}px "Courier Prime","Share Tech Mono", monospace`;
+        ansiCtx.textBaseline = 'top';
+        const sChW = ansiCtx.measureText('M').width;
+        const sChH = sFontPx * 1.2;
+  
+        const sTotalW = sChW * sCols;
+        const sTotalH = sChH * sRows;
+  
+        let left = offX + logoBox.w + gutter;
+        left = Math.min(left, w - sTotalW - rightPad);
+        const top  = Math.max(16, Math.floor((h - sTotalH)/2));
+  
+        skullGeom = { left, top, cols:sCols, rows:sRows, chW:sChW, chH:sChH, fontPx:sFontPx };
       }
-      for(let k=0;k<2;k++){ const a=rand(N), b=rand(N); if(a!==b) digL(centers[a][0],centers[a][1], centers[b][0],centers[b][1]); }
-    }
-
-    // light sparse carve to add flavor
-    const odd = v => (v%2===1);
-    const inOddGrid=(x,y)=> x>1&&y>1&&x<w-2&&y<h-2&&odd(x)&&odd(y);
-    const dirs=[[2,0],[-2,0],[0,2],[0,-2]];
-    function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=(Math.random()* (i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } return a; }
-    function carveSparseFrom(sx,sy,stepsMax){
-      let steps=0; const st=[[sx,sy]]; cells[id(sx,sy)]=0;
-      while(st.length && steps<stepsMax){
-        const [cx,cy]=st[st.length-1];
-        let moved=false; const order=shuffle(dirs.slice());
-        for(const [dx,dy] of order){
-          const nx=cx+dx, ny=cy+dy;
-          if(inOddGrid(nx,ny) && cells[id(nx,ny)]===1){
-            cells[id(cx+dx/2,cy+dy/2)]=0; cells[id(nx,ny)]=0; st.push([nx,ny]); moved=true; steps++; break;
+  
+      /* --------- helpers --------- */
+      function maskAtSmooth(x,y){
+        if(!maskData) return 0;
+        const taps = [[x,y],[x+0.35,y+0.15],[x-0.35,y-0.15],[x,y+0.35]];
+        let acc = 0;
+        for(const [sx,sy] of taps){
+          const ix = Math.max(0, Math.min(mW-1, Math.floor(sx * DPR)));
+          const iy = Math.max(0, Math.min(mH-1, Math.floor(sy * DPR)));
+          const idx = (iy * mW + ix) * 4 + 3; // alpha
+          acc += (maskData[idx] > 10) ? 1 : 0;
+        }
+        return acc / taps.length;
+      }
+      function field(x,y){
+        const l=maskAtSmooth(x-1,y), r=maskAtSmooth(x+1,y), u=maskAtSmooth(x,y-1), d=maskAtSmooth(x,y+1);
+        return {gx:(r-l), gy:(d-u)};
+      }
+  
+      function spawnParticle(build=true){
+        const band = Math.max(20, Math.floor(logoBox.w * 0.85));
+        const startX = Math.max(logoBox.x, logoBox.x + logoBox.w/2 - band/2);
+        const wander = parseFloat(css().getPropertyValue('--wander'))||0.05;
+        const baseVy = build ? (0.55 + Math.random()*0.45) : (0.75 + Math.random()*0.35);
+        const r  = build ? (1.6 + Math.random()*2.2) : (1.0 + Math.random()*1.6);
+        return {
+          x: startX + Math.random()*band,
+          y: (logoBox.y - 60) - Math.random()*60,
+          vx:(Math.random()-0.5) * wander,
+          vy: baseVy,
+          r,
+          life: 0,
+          px: null, py: null,
+          neon: !build
+        };
+      }
+  
+      function deposit(p, mode){
+        const inside = maskAtSmooth(p.x,p.y) > 0.18;
+        pctx.save();
+        if(mode==='BUILD'){
+          pctx.beginPath(); pctx.rect(logoBox.x, logoBox.y, logoBox.w, logoBox.h); pctx.clip();
+        }
+        if(p.px!==null){
+          const cx = (p.px + p.x) * 0.5;
+          const cy = (p.py + p.y) * 0.5 - Math.min(4, p.vy*1.8);
+  
+          pctx.globalCompositeOperation = (mode==='NEON') ? 'screen' : 'lighter';
+          pctx.globalAlpha = (mode==='NEON') ? 0.6 : 0.75;
+          pctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--ink-a').trim();
+          pctx.lineWidth = Math.max(0.9, p.r*0.70);
+          pctx.lineCap = 'round';
+          pctx.beginPath(); pctx.moveTo(p.px, p.py);
+          pctx.quadraticCurveTo(cx, cy, p.x, p.y);
+          pctx.stroke();
+  
+          pctx.globalCompositeOperation = 'source-over';
+          pctx.globalAlpha = (mode==='NEON') ? 0.45 : 0.55;
+          pctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--ink-tail').trim();
+          pctx.lineWidth = Math.max(0.7, p.r*0.48);
+          pctx.beginPath(); pctx.moveTo(p.px, p.py+0.3);
+          pctx.quadraticCurveTo(cx, cy+0.3, p.x, p.y-0.2);
+          pctx.stroke();
+        }
+        const g = pctx.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r*1.2);
+        g.addColorStop(0, getComputedStyle(document.documentElement).getPropertyValue('--ink-a').trim());
+        g.addColorStop(1, getComputedStyle(document.documentElement).getPropertyValue('--ink-b').trim());
+        pctx.globalCompositeOperation = (mode==='NEON') ? 'screen' : 'lighter';
+        pctx.globalAlpha = (mode==='NEON') ? 0.65 : 0.75;
+        pctx.fillStyle = g;
+        pctx.beginPath(); pctx.arc(p.x, p.y, p.r, 0, Math.PI*2); pctx.fill();
+  
+        if(mode==='BUILD' && inside){
+          const bleed = parseFloat(css().getPropertyValue('--edge-bleed'))||0.22;
+          const F = field(p.x,p.y);
+          const tx = -F.gy, ty = F.gx;
+          const norm = Math.hypot(tx,ty)||1;
+          const ex = (tx/norm)*(p.r*1.1);
+          const ey = (ty/norm)*(p.r*1.1);
+          pctx.globalCompositeOperation = 'lighter';
+          pctx.globalAlpha = 0.5;
+          pctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--ink-a').trim();
+          pctx.lineWidth = Math.max(0.6, p.r*0.42*bleed);
+          pctx.beginPath();
+          pctx.moveTo(p.x - ex, p.y - ey);
+          pctx.lineTo(p.x + ex, p.y + ey);
+          pctx.stroke();
+        }
+        pctx.restore();
+        p.px = p.x; p.py = p.y;
+      }
+  
+      function drawSkullFrame(ts){
+        if(!skullGeom) return;
+        const {left, top, cols, rows, chW, chH, fontPx} = skullGeom;
+        const t = Math.max(0, Math.min(1, (ts - skullStart)/ (parseInt(css().getPropertyValue('--ansi-ms'))||2600)));
+        const revealCols = Math.ceil(cols * t);
+  
+        // draw skull progressively; DO NOT FADE afterwards
+        ansiCtx.save();
+        ansiCtx.globalCompositeOperation = 'source-over';
+        ansiCtx.clearRect(0,0,w,h);
+        ansiCtx.font = `${fontPx}px "Courier Prime","Share Tech Mono", monospace`;
+        ansiCtx.textBaseline = 'top';
+        ansiCtx.fillStyle = '#eaeaea';
+        for (let r=0;r<rows;r++){
+          const slice = (skullLines[r]||'').slice(0,revealCols);
+          if (slice.trim().length){
+            ansiCtx.fillText(slice, left + (cols - slice.length)*chW, top + r*chH);
           }
         }
-        if(!moved) st.pop();
+        ansiCtx.restore();
       }
-    }
-    const seeds = 1 + rand(2);
-    for(let s=0;s<seeds;s++){
-      const sx= 3 + rand(Math.max(1, Math.floor((w-6)/2)))*2;
-      const sy= 3 + rand(Math.max(1, Math.floor((h-6)/2)))*2;
-      const stepsMax = Math.floor((w*h)*0.008);
-      if(inOddGrid(sx,sy)) carveSparseFrom(sx,sy,stepsMax);
-    }
-
-    // extra connectors
-    for(let i=0;i<3;i++){
-      let ax=2+rand(w-4), ay=2+rand(h-4), bx=2+rand(w-4), by=2+rand(h-4);
-      if(cells[id(ax,ay)]===0 && cells[id(bx,by)]===0) digL(ax,ay,bx,by);
-    }
-
-    // keep only the largest connected open area
-    const reg=new Array(w*h).fill(-1); let rid=0; const areas=[];
-    for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++) if(cells[id(x,y)]===0 && reg[id(x,y)]===-1){
-      const q=[[x,y]]; reg[id(x,y)]=rid; let a=0;
-      while(q.length){
-        const [qx,qy]=q.pop(); a++;
-        for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
-          const nx=qx+dx, ny=qy+dy, i=id(nx,ny);
-          if(nx>0&&ny>0&&nx<w-1&&ny<h-1 && cells[i]===0 && reg[i]===-1){ reg[i]=rid; q.push([nx,ny]); }
+  
+      function finalSolidLogo(){
+        if(finalized) return; finalized = true;
+        // draw OPAQUE logo (this sits above skull canvas)
+        logoCtx.save();
+        logoCtx.globalCompositeOperation='source-over';
+        logoCtx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--red-core').trim() || '#b30000';
+        logoCtx.font = `${fontPx}px "Courier Prime","Share Tech Mono", monospace`;
+        logoCtx.textBaseline = 'top';
+        const lines = ASCII_LOGO.split('\n');
+        for (let r=0;r<rows;r++){
+          const line = lines[r];
+          if (line && line.trim().length) logoCtx.fillText(line, offX, offY + r*chH);
         }
+        logoCtx.restore();
+        // skull stays — no fade
       }
-      areas[rid]=a; rid++;
-    }
-    const best=areas.length?areas.indexOf(Math.max(...areas)):-1; if(best>=0){ for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++) if(reg[id(x,y)]!==best) cells[id(x,y)]=1; }
-
-    // widen if too cramped
-    const openCount=()=>cells.reduce((a,c)=>a+(c===0?1:0),0); let floors=openCount(); const min=Math.floor(w*h*0.20);
-    if(floors<min){ for(let y=2;y<h-2;y++) for(let x=2;x<w-2;x++){ if(cells[id(x,y)]===1){ let n=0; if(cells[id(x+1,y)]===0)n++; if(cells[id(x-1,y)]===0)n++; if(cells[id(x,y+1)]===0)n++; if(cells[id(x,y-1)]===0)n++; if(n>=3) cells[id(x,y)]=0; } } }
-
-    // hard borders
-    for(let x=0;x<w;x++){ cells[id(x,0)]=1; cells[id(x,h-1)]=1; }
-    for(let y=0;y<h;y++){ cells[id(0,y)]=1; cells[id(w-1,y)]=1; }
-  }
-}
-
-/**********************
- * ENTITIES & SYSTEMS  *
- **********************/
-class Entity{ constructor(x,y,t){ this.x=x; this.y=y; this.type=t; this.hp=1; this.cool=0; this.tx=x; this.ty=y; } }
-
-class Game{
-  constructor(){
-    this.canvas=document.getElementById('screen');
-    this.ctx=this.canvas.getContext('2d');
-    this.ctx.font=`${TILE_H}px 'VT323', monospace`;
-    this.ctx.textBaseline='top';
-    this.levelIndex=0; this.rng=new RNG();
-    this.keys=new Set();
-    this.last=0; this.lastMove=0; this.lastEnemy=0; this.lastShot=0;
-    this.flashT=0; this.flashColor=null; this.glitchT=0;
-    this.state='play'; // 'play' | 'melting' | 'gameover'
-    this.melt=null;
-    this.resetLevel();
-    this.bindInput();
-    requestAnimationFrame(this.loop.bind(this));
-  }
-
-  resetLevel(){
-    const spec=LEVELS[this.levelIndex];
-    this.map=new Map(GRID_W,GRID_H); this.map.generate(this.rng.int(1e9));
-    let px=1,py=1; do{ px=2+rand(this.map.w-4); py=2+rand(this.map.h-4);} while(this.map.isWall(px,py));
-    this.player=new Entity(px,py,'jack');
-    this.entities=[this.player];
-
-    for(let i=0;i<spec.enemies;i++){
-      let ex=1,ey=1; do{ ex=rand(this.map.w); ey=rand(this.map.h);} while(this.map.isWall(ex,ey));
-      const e=new Entity(ex,ey,'enemy'); this.pickNewPatrol(e); this.entities.push(e);
-    }
-
-    this.diamonds=new Set();
-    let d=0; while(d<spec.diamonds){ let dx=rand(this.map.w), dy=rand(this.map.h); if(!this.map.isWall(dx,dy)){ const idx=dy*this.map.w+dx; if(idx!==py*this.map.w+px && !this.diamonds.has(idx)){ this.diamonds.add(idx); d++; } } }
-
-    let ex=px,ey=py,tries=0; do{ ex=2+rand(this.map.w-4); ey=2+rand(this.map.h-4); tries++; } while((Math.abs(ex-px)+Math.abs(ey-py)<24 || this.map.isWall(ex,ey)) && tries<2000); this.exit=ey*this.map.w+ex;
-
-    this.bullets=[]; this.seen=new Set(); this.sanity=100; this.ammo=24; this.lastDir=[1,0];
-
-    document.getElementById('levelName').textContent=spec.name;
-    this.updateHUD();
-
-    this.decor = new globalThis.Map();
-    const placeDecor = (count, glyph)=>{ 
-      let placed=0; 
-      while(placed<count){ 
-        const x=2+rand(this.map.w-4), y=2+rand(this.map.h-4); 
-        const i=y*this.map.w+x; 
-        if(this.map.isWall(x,y)||i===this.exit||this.diamonds.has(i) || (x===this.player.x&&y===this.player.y) || this.entities.some(e=>e.x===x&&e.y===y) || this.decor.has(i)) continue; 
-        this.decor.set(i,glyph); 
-        placed++; 
-      } 
-    };
-    const levelKey=spec.key; if(levelKey==='jungle'||levelKey==='paranoia'){ placeDecor(16,{ch:Glyphs.palm.ch,fg:Glyphs.palm.fg}); }
-
-    this.state='play'; this.melt=null;
-    log(`[LEVEL ${spec.id}] ${spec.name} — Collect all memory fragments (♦) then reach >`);
-  }
-
-  startMelt(){
-    const w=this.canvas.width, h=this.canvas.height;
-    const off=document.createElement('canvas'); off.width=w; off.height=h; const octx=off.getContext('2d');
-    octx.drawImage(this.canvas,0,0);
-    const colW=2, cols=Math.ceil(w/colW); const offs=new Array(cols).fill(0); const vels=new Array(cols);
-    for(let i=0;i<cols;i++){ vels[i]=1.2+Math.random()*2.0; offs[i]=0; }
-    this.melt={off:off, colW, cols, offs, vels, done:false, timer:0};
-    this.state='melting';
-  }
-
-  renderMelt(dt){
-    const m=this.melt; if(!m) return;
-    const ctx=this.ctx; const w=this.canvas.width, h=this.canvas.height; ctx.clearRect(0,0,w,h);
-    for(let i=0;i<m.cols;i++){ m.offs[i]+=m.vels[i]*(dt/16); m.vels[i]+=0.04; }
-    for(let i=0;i<m.cols;i++){
-      const sx=i*m.colW; const dx=sx; const dy=Math.min(h, m.offs[i]);
-      ctx.drawImage(m.off, sx, 0, m.colW, h, dx, dy, m.colW, h);
-    }
-    ctx.globalAlpha=0.15; ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h); ctx.globalAlpha=1;
-    const avg = m.offs.reduce((a,c)=>a+c,0)/m.cols; if(avg>h*1.1){ this.state='gameover'; }
-  }
-
-  renderGameOver(){
-    const ctx=this.ctx; const w=this.canvas.width, h=this.canvas.height;
-    ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h);
-
-    // Title
-    ctx.fillStyle='#ff4040'; ctx.font='36px "VT323", monospace'; ctx.textAlign='center'; ctx.textBaseline='top';
-    ctx.fillText('GAME OVER', w/2, 42);
-
-    // Subtitle
-    ctx.fillStyle='#c7d2da'; ctx.font='18px "VT323", monospace';
-    ctx.fillText('EXTRACTION FAILED — THE WAR NEVER ENDS', w/2, 88);
-
-    // Scaled red skull: 40% of original size (i.e., smaller by 60%)
-    const SKULL_SCALE = 0.40;
-    ctx.save();
-    ctx.translate(w/2, 140);   // anchor top-center
-    ctx.scale(SKULL_SCALE, SKULL_SCALE);
-    ctx.fillStyle='#ff3c3c';
-    ctx.font='16px "VT323", monospace';
-    ctx.textAlign='center';
-    let y=0;
-    for(const line of ASCII_RIP){ ctx.fillText(line, 0, y); y+=22; }
-    ctx.restore();
-
-    // Prompt
-    ctx.fillStyle='#7efc6b'; ctx.font='16px "VT323", monospace';
-    ctx.fillText('Press any key to descend again…', w/2, h-56);
-
-    // Restore defaults
-    ctx.textAlign='start'; ctx.textBaseline='top'; ctx.font=`${TILE_H}px "VT323", monospace`;
-  }
-
-  pickNewPatrol(e){ let tx,ty; do{ tx=rand(this.map.w); ty=rand(this.map.h); } while(this.map.isWall(tx,ty)); e.tx=tx; e.ty=ty; }
-
-  bindInput(){
-    window.addEventListener('keydown',(e)=>{
-      const k=e.key.toLowerCase();
-      if(this.state==='gameover'){
-        e.preventDefault();
-        this.levelIndex=0; this.resetLevel(); return;
+  
+      /* -------- Paranoid typewriter (Special Elite, no lines/boxes) -------- */
+      function startTypewriter(){
+        const maxW = Math.floor(logoBox.w*0.95);
+        const ts = Math.min(64, Math.max(18, Math.floor(maxW/(TYPE_TEXT.length*0.62))));
+        const y  = Math.min(h-40, logoBox.y + logoBox.h + Math.max(24, Math.floor(logoBox.h*0.08)));
+        const cx = Math.floor(logoBox.x + logoBox.w/2);
+  
+        let idx=0, typing=true, caretOn=true;
+  
+        const draw = () => {
+          // clear only a tight strip around text—no decorative lines
+          typeCtx.clearRect(logoBox.x, y-ts*1.2, logoBox.w, ts*2.4);
+  
+          typeCtx.textBaseline='middle'; typeCtx.textAlign='center';
+          const txt = TYPE_TEXT.slice(0, idx);
+  
+          // subtle double-pass jitter; no extra shapes
+          typeCtx.font = `${Math.round(ts)}px "Special Elite", "Courier Prime", monospace`;
+  
+          // ghost pass
+          typeCtx.globalAlpha = 0.65;
+          typeCtx.fillStyle = '#e6e6e6';
+          typeCtx.fillText(txt, cx + (Math.random()*0.8-0.4), y + (Math.random()*0.8-0.4));
+  
+          // main pass
+          typeCtx.globalAlpha = 0.95;
+          typeCtx.fillText(txt, cx + (Math.random()*0.4-0.2), y + (Math.random()*0.4-0.2));
+  
+          // caret (no box)
+          if(typing && caretOn){
+            const measureAll = typeCtx.measureText(TYPE_TEXT);
+            const pre = TYPE_TEXT.slice(0, Math.max(0,idx));
+            const meas = typeCtx.measureText(pre);
+            const caretX = cx - (measureAll.width/2) + meas.width + 3;
+            const ch = Math.floor(ts*0.96);
+            typeCtx.globalAlpha = 0.85;
+            typeCtx.fillRect(caretX, y - ch*0.55, Math.max(2, ts*0.07), ch*0.95);
+          }
+  
+          typeCtx.globalAlpha = 1;
+        };
+  
+        (function step(){
+          if(idx<=TYPE_TEXT.length){ draw(); idx++; setTimeout(step, 48 + (Math.random()*40|0)); }
+          else { typing=false; draw(); }
+        })();
+  
+        (function blink(){
+          caretOn = !caretOn;
+          if(!typing) { draw(); return; }
+          draw(); setTimeout(blink, 360 + (Math.random()*240|0));
+        })();
       }
-      if(['arrowup','arrowdown','arrowleft','arrowright','w','a','s','d',' '].includes(k)) e.preventDefault();
-      this.keys.add(k);
-    });
-    window.addEventListener('keyup',(e)=>{ this.keys.delete(e.key.toLowerCase()); });
-  }
-
-  canStep(x,y){ return this.map.inb(x,y) && !this.map.isWall(x,y); }
-  stepEntity(ent,dx,dy){ const nx=ent.x+dx, ny=ent.y+dy; if(this.canStep(nx,ny)){ ent.x=nx; ent.y=ny; return true; } return false; }
-
-  tryMovePlayer(){
-    let dx=0,dy=0;
-    if(this.keys.has('arrowup')||this.keys.has('w')) dy=-1; else if(this.keys.has('arrowdown')||this.keys.has('s')) dy=1;
-    if(this.keys.has('arrowleft')||this.keys.has('a')) dx=-1; else if(this.keys.has('arrowright')||this.keys.has('d')) dx=1;
-    if(dx||dy){ this.lastDir=[dx,dy]; this.stepEntity(this.player,dx,dy); this.collectAtPlayer(); }
-  }
-
-  shoot(){
-    if(this.ammo<=0) return;
-    this.ammo--;
-    const [dx,dy]=this.lastDir;
-    this.bullets.push({x:this.player.x+dx*0.1,y:this.player.y+dy*0.1,dx,dy,life:140});
-    this.updateHUD();
-  }
-
-  updateBullets(dt){
-    const speed=BULLET_SPEED*dt;
-    this.bullets=this.bullets.filter(b=>{
-      b.x+=b.dx*speed; b.y+=b.dy*speed; b.life--;
-      const ix=Math.round(b.x), iy=Math.round(b.y);
-      if(!this.map.inb(ix,iy)||this.map.isWall(ix,iy)||b.life<=0) return false;
-      const hit=this.entities.find(e=>e.type==='enemy'&&e.x===ix&&e.y===iy);
-      if(hit){ hit.hp=0; this.entities=this.entities.filter(e=>e!==hit); this.flashT=12; return false; }
-      return true;
-    });
-  }
-
-  updateEnemies(){
-    for(const e of this.entities){
-      if(e.type!=='enemy') continue;
-      if(e.x===e.tx&&e.y===e.ty) this.pickNewPatrol(e);
-      const dx=Math.sign(e.tx-e.x), dy=Math.sign(e.ty-e.y);
-      let moved=false;
-      if(Math.random()<0.5){
-        moved=(dx!==0&&this.stepEntity(e,dx,0));
-        if(!moved&&dy!==0) moved=this.stepEntity(e,0,dy);
-      } else {
-        moved=(dy!==0&&this.stepEntity(e,0,dy));
-        if(!moved&&dx!==0) moved=this.stepEntity(e,dx,0);
-      }
-      if(!moved){
-        if(!this.stepEntity(e,(Math.random()<0.5?1:-1),0)) this.stepEntity(e,0,(Math.random()<0.5?1:-1));
-        if(Math.random()<0.3) this.pickNewPatrol(e);
-      }
-      if(e.x===this.player.x&&e.y===this.player.y){ this.onPlayerHit(); }
-    }
-  }
-
-  onPlayerHit(){ log('CAUGHT — GAME OVER'); this.startMelt(); }
-
-  collectAtPlayer(){
-    const idx=this.player.y*this.map.w+this.player.x;
-    if(this.diamonds.has(idx)){
-      this.diamonds.delete(idx);
-      this.sanity=clamp(this.sanity+5,0,100);
-      this.flashT=12; this.flashColor='#ffd400'; this.glitchT=Math.max(this.glitchT,24);
-      this.updateHUD();
-      if(this.diamonds.size===0) log('All memory fragments collected — Exit unlocked.');
-    }
-  }
-
-  render(){
-    const ctx=this.ctx, spec=LEVELS[this.levelIndex], pal=PALETTES[spec.key];
-    if(this.state==='melting'){ return; }
-    if(this.state==='gameover'){ this.renderGameOver(); return; }
-
-    ctx.imageSmoothingEnabled=false; ctx.fillStyle=pal.bg; ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
-
-    const vis=computeFOV(this.map,this.player.x,this.player.y,12); 
-    for(const i of vis) this.seen.add(i);
-
-    for(let y=0;y<this.map.h;y++){
-      for(let x=0;x<this.map.w;x++){
-        const i=y*this.map.w+x, seen=this.seen.has(i), visible=vis.has(i), isWall=this.map.isWall(x,y);
-        if(isWall){
-          const fg=visible?Glyphs.wall.fg:COLOR_WALL_DARK;
-          this.drawChar(wallGlyph(x,y,spec.key),x*TILE_W,y*TILE_H,fg);
-        } else {
-          if(visible){ this.drawChar('.',x*TILE_W,y*TILE_H, COLOR_FLOOR_LIT); }
-          else if(seen){ this.drawChar('·',x*TILE_W,y*TILE_H, COLOR_FLOOR_SEEN); }
-          if(this.decor && this.decor.has(i) && (visible||seen)){ const d=this.decor.get(i); this.drawCharExact(d.ch, x*TILE_W, y*TILE_H, d.fg); }
-          if(this.diamonds.has(i)) this.drawCharExact(Glyphs.diamond.ch,x*TILE_W,y*TILE_H,Glyphs.diamond.fg);
-          if(this.exit===i) this.drawCharExact(Glyphs.exit.ch,x*TILE_W,y*TILE_H, this.diamonds.size===0? '#e8f1ff' : '#6b7785');
+  
+      function tick(ts){
+        // phase transitions
+        if(phase===0 && ts >= stopAt){                // BUILD -> FADE_PAINT
+          phase = 1; finalSolidLogo();
         }
-      }
-    }
-
-    for(const e of this.entities){
-      if(e.type==='jack') this.drawCharExact(Glyphs.jack.ch,e.x*TILE_W,e.y*TILE_H,Glyphs.jack.fg);
-      else this.drawCharExact(Glyphs.enemy.ch,e.x*TILE_W,e.y*TILE_H,Glyphs.enemy.fg);
-    }
-    for(const b of this.bullets){
-      const ix=Math.round(b.x), iy=Math.round(b.y); const i=iy*this.map.w+ix;
-      if(!vis.has(i)) continue;
-      this.drawChar(Glyphs.bullet.ch, ix*TILE_W, iy*TILE_H, Glyphs.bullet.fg);
-    }
-    if(this.glitchT>0){
-      const n=120; ctx.globalAlpha=0.9;
-      for(let k=0;k<n;k++){
-        ctx.fillStyle=(Math.random()<0.5)?'#ffd400':'#ffee55';
-        const px=Math.random()*this.canvas.width, py=Math.random()*this.canvas.height;
-        ctx.fillRect(px,py,1,1);
-      }
-      ctx.globalAlpha=1; this.glitchT--;
-    }
-    if(this.flashT>0){
-      this.flashT--; ctx.globalAlpha=0.10;
-      ctx.fillStyle=this.flashColor||pal.flash||'#aa0000';
-      ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
-      ctx.globalAlpha=1; if(this.flashT===0) this.flashColor=null;
-    }
-  }
-
-  drawChar(ch,x,y,fg){
-    const spec=LEVELS[this.levelIndex]; const pal=PALETTES[spec.key];
-    this.ctx.fillStyle=this.tintColor(fg,pal.tint);
-    let glyph=ch;
-    const corruptBoost=(this.glitchT>0?0.25:0);
-    const corruptChance=(100-this.sanity)/100*0.08+corruptBoost;
-    if(Math.random()<corruptChance){ glyph=choice(['▒','▓','█','░','?','!','@','#']); }
-    this.ctx.fillText(glyph,x,y);
-  }
-  drawCharExact(ch,x,y,fg){ this.ctx.fillStyle=fg; this.ctx.fillText(ch,x,y); }
-  tintColor(color,t){ const r=parseInt(color.slice(1,3),16), g=parseInt(color.slice(3,5),16), b=parseInt(color.slice(5,7),16); const nr=clamp(Math.round(r*t[0]),0,255), ng=clamp(Math.round(g*t[1]),0,255), nb=clamp(Math.round(b*t[2]),0,255); return `#${nr.toString(16).padStart(2,'0')}${ng.toString(16).padStart(2,'0')}${nb.toString(16).padStart(2,'0')}`; }
-
-  updateHUD(){
-    document.getElementById('sanityBar').style.width=`${this.sanity}%`;
-    document.getElementById('sanityPct').textContent=`${this.sanity|0}%`;
-    const spec=LEVELS[this.levelIndex];
-    document.getElementById('diamonds').textContent=`${spec.diamonds - this.diamonds.size}/${spec.diamonds}`;
-    document.getElementById('exitState').textContent=this.diamonds.size===0? 'Unlocked' : 'Locked';
-  }
-
-  loop(ts){
-    const dt=this.last?(ts-this.last):16; this.last=ts;
-    if(this.state==='melting'){ this.renderMelt(dt); requestAnimationFrame(this.loop.bind(this)); return; }
-    if(this.state==='gameover'){ this.renderGameOver(); requestAnimationFrame(this.loop.bind(this)); return; }
-
-    this.sanity=clamp(this.sanity-(SANITY_DRAIN_PS*dt/1000),0,100);
-    if(this.sanity<=0){ log('SANITY COLLAPSE. Melting…'); this.startMelt(); this.updateHUD(); this.render(); requestAnimationFrame(this.loop.bind(this)); return; }
-    if(ts-this.lastMove>=MOVE_COOLDOWN){ this.tryMovePlayer(); this.lastMove=ts; }
-    if(this.keys.has(' ')){ if(ts-this.lastShot>=BULLET_COOLDOWN){ this.shoot(); this.lastShot=ts; } }
-    if(ts-this.lastEnemy>=ENEMY_COOLDOWN){ this.updateEnemies(); this.lastEnemy=ts; }
-    this.updateBullets(dt);
-    const pidx=this.player.y*this.map.w+this.player.x;
-    if(pidx===this.exit && this.diamonds.size===0){ this.levelIndex=(this.levelIndex+1)%LEVELS.length; log('Extraction point reached. Descending…'); this.resetLevel(); return; }
-    this.updateHUD(); this.render(); requestAnimationFrame(this.loop.bind(this));
-  }
-}
-
-/**********************
- * BOOT & API          *
- **********************/
-const game=new Game();
-window.Kommando={ setPalette(key){ const idx=LEVELS.findIndex(l=>l.key===key); if(idx>=0){ game.levelIndex=idx; game.resetLevel(); } } };
-
-/**********************
- * SELF-TESTS (safe)   *
- * Keep them light and do NOT create another Game instance.
- **********************/
-(function runTests(){
-  try{
-    console.assert(typeof wallGlyph==='function','wallGlyph should be defined');
-    const m=new Map(60,30); m.generate(12345);
-    const walls=m.cells.filter(c=>c===1).length, floors=m.cells.length-walls;
-    console.assert(walls>0 && floors>0,'Map should have walls and floors');
-    // quick connectivity sample
-    const w=m.w,h=m.h; const seen=new Set(); let biggest=0;
-    for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++){
-      if(!m.isWall(x,y) && !seen.has(y*w+x)){
-        let area=0; const q=[[x,y]]; seen.add(y*w+x);
-        while(q.length){
-          const [cx,cy]=q.pop(); area++;
-          for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
-            const nx=cx+dx, ny=cy+dy, id=ny*w+nx;
-            if(nx>0&&ny>0&&nx<w-1&&ny<h-1 && !m.isWall(nx,ny) && !seen.has(id)){
-              seen.add(id); q.push([nx,ny]);
+        if(phase===1 && ts >= stopAt + 500){          // after brief paint fade, move to neon
+          phase = 2;
+        }
+        if(phase===2 && ts >= neonUntil){             // NEON end
+          phase = 3;
+        }
+  
+        // per-phase clears (paint)
+        if(phase===0){
+          pctx.save();
+          pctx.globalCompositeOperation='destination-out';
+          pctx.fillStyle=`rgba(0,0,0,${css().getPropertyValue('--fade-alpha')||0.010})`;
+          pctx.fillRect(logoBox.x, logoBox.y, logoBox.w, logoBox.h);
+          pctx.restore();
+        } else if(phase===1){
+          pctx.save();
+          pctx.globalCompositeOperation='destination-out';
+          pctx.fillStyle=`rgba(0,0,0,${css().getPropertyValue('--fadeout-alpha')||0.22})`;
+          pctx.fillRect(0,0,w,h);
+          pctx.restore();
+        } else if(phase===2){
+          pctx.save();
+          pctx.globalCompositeOperation='destination-out';
+          pctx.fillStyle=`rgba(0,0,0,${css().getPropertyValue('--neon-clear')||0.30})`;
+          pctx.fillRect(0,0,w,h);
+          pctx.restore();
+        }
+  
+        // spawn / simulate
+        const G = parseFloat(css().getPropertyValue('--grav'))||0.05;
+        const DRAG = parseFloat(css().getPropertyValue('--drag'))||0.990;
+  
+        if(phase===0 && ts<spawnUntil && particles.length<MAX()){
+          for(let i=0;i<8;i++) particles.push(spawnParticle(true));
+        }
+        if(phase===2 && particles.length<Math.floor(MAX()*0.35)){
+          for(let i=0;i<6;i++) particles.push(spawnParticle(false));
+        }
+  
+        for(let i=particles.length-1;i>=0;i--){
+          const p=particles[i];
+          p.vy += G;
+          const F=field(p.x,p.y);
+          p.vx += F.gx*0.12;
+          p.vy += F.gy*0.12;
+          p.vx *= DRAG; p.vy *= DRAG;
+          p.px = (p.px===null)? p.x : p.x;
+          p.py = (p.py===null)? p.y : p.y;
+          p.x  += p.vx; p.y  += p.vy;
+          p.life++;
+  
+          if(phase===0){
+            if(maskAtSmooth(p.x,p.y)>0.18){
+              p.vx *= (parseFloat(css().getPropertyValue('--stick-x'))||0.92);
+              p.vy  = Math.max(0.18, p.vy*(parseFloat(css().getPropertyValue('--stick-y'))||0.86));
             }
+            deposit(p,'BUILD');
+          } else if(phase===2){
+            deposit(p,'NEON');
           }
+  
+          if(p.x<-24||p.x>w+24||p.y>h+50) particles.splice(i,1);
         }
-        biggest=Math.max(biggest,area);
+  
+        // skull draw (no fade)
+        drawSkullFrame(ts);
+  
+        if(phase<3){ rafId=requestAnimationFrame(tick); }
       }
-    }
-    console.assert(biggest> (w*h*0.20), 'Largest cavern should be reasonably sized');
-    log('TEST OK');
-  }catch(err){
-    console.error(err); log('TEST FAIL: '+(err&&err.message?err.message:err));
-  }
-})();
-</script>
-</body>
-</html>
+  
+      function start(){
+        cancelAnimationFrame(rafId);
+        finalized=false;
+        particles.length = 0;
+        phase = 0;
+  
+        [ansiCtx, logoCtx, pctx, typeCtx].forEach(ctx=>{
+          ctx.setTransform(1,0,0,1,0,0);
+          ctx.globalCompositeOperation='source-over';
+          ctx.globalAlpha=1;
+          ctx.clearRect(0,0,99999,99999);
+        });
+  
+        layout();
+  
+        const now = performance.now();
+        skullStart = now;
+        spawnUntil = now + (parseInt(css().getPropertyValue('--spawn-ms'))||5200);
+        stopAt     = now + (parseInt(css().getPropertyValue('--sim-ms'))  ||9800);
+        neonUntil  = stopAt + (parseInt(css().getPropertyValue('--neon-ms'))||2800);
+  
+        setTimeout(()=> startTypewriter(), Math.max(80, (spawnUntil-now) + 150));
+        rafId = requestAnimationFrame(tick);
+      }
+  
+      window.addEventListener('resize', start, {passive:true});
+      window.addEventListener('keydown', e=>{ if(e.code==='Space'){ e.preventDefault(); start(); }} );
+      window.addEventListener('click', start, {passive:true});
+  
+      start();
+    })();
+    </script>
+  </body>
+  </html>
