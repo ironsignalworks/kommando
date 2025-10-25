@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>KOMMANDO — Extraction Failed</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Special+Elite&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#000; --ink:#e8e8e8; --muted:#bdbdbd; --accent:#b30000;
+    --col-gap: 18px; --left-max: 640px; --type-ms: 26; --reveal-ms: 1400;
+  }
+  html,body{height:100%; overflow:hidden;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:'Share Tech Mono', ui-monospace, Menlo, Consolas, monospace;
+    display:grid; place-items:center;
+  }
+  .frame{
+    width:min(980px, 96vw); height:min(560px, 90vh);
+    background:#060606; position:relative; overflow:hidden;
+    box-shadow:0 0 0 1px #111 inset;
+    display:grid; grid-template-columns: minmax(340px, var(--left-max)) minmax(240px, 1fr);
+    gap:var(--col-gap);
+    padding:16px 18px 36px 18px;
+    box-sizing:border-box;
+  }
+  .left{
+    align-self:start; padding:0 10px 0 0;
+    font-family:'Special Elite', 'Share Tech Mono', monospace;
+    font-size: clamp(13px, 1.35vw, 17px);
+    line-height:1.22; letter-spacing:.01em;
+  }
+  .kicker{ color:var(--muted); font-size:.88em; margin:0 0 4px 0; }
+  .block{ margin:2px 0 2px; white-space: pre-wrap; }
+  .sep{ opacity:.4; margin:2px 0 }
+
+  .right{
+    position:relative; overflow:hidden;
+    border-left:1px solid #111; padding-left: var(--col-gap);
+    align-self:start; height:min(100%, 360px); max-height:360px; min-height:200px;
+  }
+  canvas{ position:absolute; inset:0; display:block }
+
+  .cta{
+    position:fixed; left:50%; top:90%;
+    transform:translate(-50%, -50%);
+    z-index:5; pointer-events:none;
+  }
+  .cta .btn{ pointer-events:auto; }
+  .btn{
+    text-decoration:none; cursor:pointer;
+    border:1px solid var(--accent); color:#ffd7d7; background:#120000;
+    font-family:'Share Tech Mono', monospace;
+    font-size: clamp(12px, 1.6vw, 16px);
+    letter-spacing:.06em; padding:.6rem .95rem; border-radius:8px;
+    box-shadow:0 0 0 1px #2a0000 inset, 0 0 18px rgba(255,0,0,.12);
+    transition: transform .12s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease;
+  }
+  .btn:hover, .btn:focus-visible{
+    outline:none; transform:translateY(-1px);
+    border-color:#ff2a2a; background:#240000;
+    box-shadow:0 0 0 1px #3a0000 inset, 0 0 34px rgba(255,0,0,.18);
+  }
+  .meta{ position:absolute; right:14px; bottom:14px; opacity:.55; font-size:9px; letter-spacing:.05em; }
+
+  @media (max-height: 560px){ .meta{ display:none; } }
+</style>
+</head>
+<body>
+  <main class="frame">
+    <!-- LEFT TEXT -->
+    <section class="left" id="typewrap" aria-label="Endgame text">
+      <div class="kicker">[ END OF RECORDING // SIGNAL INTERFERENCE DETECTED ]</div>
+      <div class="block" data-type>
+You reach the extraction zone — or what’s left of it.  
+The coordinates melt on the screen.  
+Bodies become pixels.  
+The jungle breathes through the static.
+      </div>
+      <div class="block" data-type>
+Every face you killed looks back at you —  
+— and you realize you were never deployed.  
+You’ve been crawling through your own mind.  
+Each room, a memory loop.  
+Each enemy, a reflection.
+      </div>
+      <div class="block" data-type>
+The radio hisses:
+
+> “They never left the jungle, Kommando…”
+      </div>
+      <div class="block" data-type>
+Your weapon jams.  
+The walls dissolve into static.
+The floor collapses into white noise.
+      </div>
+      <div class="sep">────────────</div>
+      <div class="block" data-type>
+[ FINAL MESSAGE: EXTRACTION FAILED ]  
+[ SUBJECT STATUS: LOOP REINITIALIZED ]  
+
+...and the cycle begins again.
+      </div>
+    </section>
+
+    <!-- RIGHT ASCII PANEL (glitchier reveal) -->
+    <aside class="right" aria-label="ASCII image">
+      <canvas id="asciiCanvas"></canvas>
+      <script type="text/plain" id="asciiArt">
+
+       VOICES IN YOUR HEAD...
+        ______
+        /____\
+        (____)
+        /____\
+        |___.-~-.-~-.
+        |__(  __|__  )_
+        |/ \/\_/^\._)/ \
+        (  (__{(@)}\_)  )
+        |\_/ (/(_)\_))_/
+  ______|_(  (__)_)_/ )
+ /_________\_/  |  \_/
+|/   /' |\  /'-~'~-'\|
+    |  (| \/ |
+    |   `\   |
+     `\  `\  |    ___
+       `\  `\|  /' ..'>
+      ___`\  `\: ,' /'
+    /' _ /''`\  '__'
+   < .'./'   |  |
+    `~' |    |  |
+        |    |/'
+        |    |
+        |    |
+        |    |
+         \  /
+          \/
+
+      </script>
+    </aside>
+
+    <!-- CTA -->
+    <div class="cta">
+      <a class="btn" href="index.html" aria-label="Restart Loop">RESTART LOOP ▸</a>
+    </div>
+
+    <div class="meta">© KOMMANDO — FOG OF WAR</div>
+  </main>
+
+<script>
+(() => {
+  /* Typewriter */
+  const blocks = [...document.querySelectorAll('[data-type]')];
+  const base = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--type-ms')) || 26;
+  let delay = 0;
+  blocks.forEach(el => {
+    const full = el.textContent;
+    el.textContent = '';
+    [...full].forEach((ch, i) => {
+      setTimeout(() => { el.textContent += ch; }, delay + i*base + Math.random()*6);
+    });
+    delay += full.length * base + 420;
+  });
+
+  /* Right ASCII: reveal + corruption flashes at end */
+  const cvs = document.getElementById('asciiCanvas');
+  const ctx = cvs.getContext('2d');
+  const raw = document.getElementById('asciiArt').textContent.replace(/^\/\*[\s\S]*?\*\/\s*/,'').trim();
+  const lines = raw.split('\n');
+
+  function fit(){
+    const rect = cvs.parentElement.getBoundingClientRect();
+    cvs.width = Math.max(1, Math.floor(rect.width));
+    cvs.height = Math.max(1, Math.floor(rect.height));
+    cvs.style.width = rect.width + 'px';
+    cvs.style.height = rect.height + 'px';
+    ctx.setTransform(1,0,0,1,0,0);
+  }
+  function draw(t){
+    ctx.clearRect(0,0,cvs.width,cvs.height);
+    if(!lines.length) return;
+    const cols = Math.max(...lines.map(l=>l.length));
+    const rows = lines.length;
+    const w = cvs.width, h = cvs.height;
+
+    const marginCols = 4, marginRows = 4;
+    let px = Math.floor(Math.min(
+      w / Math.max(10, cols + marginCols),
+      h / Math.max(8, rows + marginRows)
+    ));
+    px = Math.max(7, Math.min(px, 16));
+
+    ctx.font = `${px}px "Share Tech Mono", monospace`;
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#e6e6e6';
+
+    const charW = ctx.measureText('M').width || px;
+    const lineH = Math.max(1, Math.round(px * 1.1));
+    const blockW = charW * cols;
+    const blockH = lineH * rows;
+    const left = Math.max(10, Math.round((w - blockW)/2));
+    const top  = Math.max(10, Math.round((h - blockH)/2));
+
+    const revealCols = Math.floor(cols * t);
+
+    for(let r=0;r<rows;r++){
+      const line = lines[r]||'';
+      const slice = line.slice(0, revealCols);
+      if(slice) ctx.fillText(slice, left, top + r*lineH);
+    }
+
+    // scanlines
+    ctx.globalAlpha = 0.08; ctx.fillStyle = '#fff';
+    for(let y=0; y<h; y+=3) ctx.fillRect(0,y,w,1);
+    ctx.globalAlpha = 1;
+
+    // brief corruption at very end
+    if(t > 0.98){
+      const bursts = 12;
+      ctx.globalAlpha = 0.35;
+      for(let i=0;i<bursts;i++){
+        const rx = left + Math.random()*blockW;
+        const ry = top  + Math.random()*blockH;
+        const rw = (Math.random()*chW*6)+chW*2;
+        const rh = (Math.random()*chH*1.5)+chH*0.5;
+        ctx.fillStyle = (i%2)?'#ff2a2a':'#e6e6e6';
+        ctx.fillRect(rx, ry, rw, 1);
+      }
+      ctx.globalAlpha = 1;
+    }
+  }
+
+  fit();
+  let start = performance.now();
+  const total = (parseInt(getComputedStyle(document.documentElement).getPropertyValue('--reveal-ms')) || 1400);
+  function raf(now){
+    const t = Math.min(1, (now - start)/total);
+    draw(t);
+    if(t < 1) requestAnimationFrame(raf);
+  }
+  requestAnimationFrame(raf);
+  addEventListener('resize', () => { fit(); start = performance.now(); requestAnimationFrame(raf); }, {passive:true});
+})();
+</script>
+</body>
+</html>

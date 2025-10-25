@@ -1,0 +1,72 @@
+﻿diff --git a/index.html b/index.html
+index ea2eaeb..0000000 100644
+--- a/index.html
++++ b/index.html
+@@
+-  castRow(1,1.0,0.0, 1,0,0,1); castRow(1,1.0,0.0, 1,0,0,-1); castRow(1,1.0,0.0,-1,0,0,1); castRow(1,1.0,0.0,-1,0,0,-1);
+-  castRow(1,1.0,0.0, 0,1,1,0); castRow(1,1.0,0.0, 0,1,-1,0); castRow(1,1.0,0.0, 0,-1,1,0); castRow(1,1.0,0.0, 0,-1,-1,0);
+-  return vis;
++  castRow(1,1.0,0.0, 1,0,0,1); castRow(1,1.0,0.0, 1,0,0,-1); castRow(1,1.0,0.0,-1,0,0,1); castRow(1,1.0,0.0,-1,0,0,-1);
++  castRow(1,1.0,0.0, 0,1,1,0); castRow(1,1.0,0.0, 0,1,-1,0); castRow(1,1.0,0.0, 0,-1,1,0); castRow(1,1.0,0.0, 0,-1,-1,0);
++  if(radius>0 && vis.size===1){
++    const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
++    for(const [dx,dy] of dirs){
++      const nx=ox+dx, ny=oy+dy;
++      if(nx>=0 && ny>=0 && nx<map.w && ny<map.h && !(map.isWall && map.isWall(nx,ny))){
++        vis.add(ny*map.w+nx);
++      }
++    }
++  }
++  return vis;
+@@
+-    this.diamonds=new Set();
+-    let d=0; while(d<spec.diamonds){ let dx=rand(this.map.w), dy=rand(this.map.h); if(!this.map.isWall(dx,dy)){ const idx=dy*this.map.w+dx; if(idx!==py*this.map.w+px && !this.diamonds.has(idx)){ this.diamonds.add(idx); d++; } } }
++    this.diamonds=new Set();
++    const totalCells=this.map.w*this.map.h;
++    const diamondTarget=spec.diamonds||0;
++    let d=0, diamondAttempts=0;
++    while(d<diamondTarget && diamondAttempts<totalCells*4){
++      diamondAttempts++;
++      const dx=rand(this.map.w), dy=rand(this.map.h);
++      if(this.map.isWall(dx,dy)) continue;
++      const idx=dy*this.map.w+dx;
++      if(idx===py*this.map.w+px || this.diamonds.has(idx)) continue;
++      this.diamonds.add(idx); d++;
++    }
++    this.diamondGoal=this.diamonds.size;
++    if(d<diamondTarget){ console.warn(`Placed ${d}/${diamondTarget} diamonds on level ${spec.id}; map density too high.`); }
+@@
+-    const placeDecor = (count, glyph)=>{ let placed=0; while(placed<count){ const x=2+rand(this.map.w-4), y=2+rand(this.map.h-4); const i=y*this.map.w+x; if(this.map.isWall(x,y)||i===this.exit||this.diamonds.has(i)|| (x===this.player.x&&y===this.player.y) || this.entities.some(e=>e.x===x&&e.y===y) || this.decor.has(i)) continue; this.decor.set(i,glyph); placed++; } };
++    const placeDecor = (count, glyph)=>{
++      let placed=0, attempts=0, maxAttempts=totalCells*3;
++      while(placed<count && attempts<maxAttempts){
++        attempts++;
++        const x=2+rand(this.map.w-4), y=2+rand(this.map.h-4);
++        const i=y*this.map.w+x;
++        if(this.map.isWall(x,y)||i===this.exit||this.diamonds.has(i)||(x===this.player.x&&y===this.player.y)||this.entities.some(e=>e.x===x&&e.y===y)||this.decor.has(i)) continue;
++        this.decor.set(i,glyph); placed++;
++      }
++    };
+@@
+-  updateHUD(){ document.getElementById('sanityBar').style.width=`${this.sanity}%`; document.getElementById('sanityPct').textContent=`${this.sanity|0}%`; const spec=LEVELS[this.levelIndex]; document.getElementById('diamonds').textContent=`${spec.diamonds - this.diamonds.size}/${spec.diamonds}`; document.getElementById('exitState').textContent=this.diamonds.size===0? 'Unlocked' : 'Locked'; }
++  updateHUD(){
++    document.getElementById('sanityBar').style.width=`${this.sanity}%`;
++    document.getElementById('sanityPct').textContent=`${this.sanity|0}%`;
++    const spec=LEVELS[this.levelIndex];
++    const diamondTotal=this.diamondGoal ?? spec.diamonds;
++    const diamondCollected=Math.max(0, diamondTotal - this.diamonds.size);
++    document.getElementById('diamonds').textContent=`${diamondCollected}/${diamondTotal}`;
++    document.getElementById('exitState').textContent=this.diamonds.size===0? 'Unlocked' : 'Locked';
++  }
+@@
+-    const pidx=this.player.y*this.map.w+this.player.x; if(pidx===this.exit && this.diamonds.size===0){ this.levelIndex=(this.levelIndex+1)%LEVELS.length; log('Extraction point reached. Descending…'); this.resetLevel(); return; }
++    const pidx=this.player.y*this.map.w+this.player.x;
++    if(pidx===this.exit && this.diamonds.size===0){
++      this.levelIndex=(this.levelIndex+1)%LEVELS.length;
++      log('Extraction point reached. Descending…');
++      this.resetLevel();
++      this.last=0;
++      this.render();
++      requestAnimationFrame(this.loop.bind(this));
++      return;
++    }

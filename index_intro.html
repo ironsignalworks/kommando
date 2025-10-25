@@ -282,7 +282,7 @@
         const blockH = chH * rows;
 
         offX = Math.floor((w - blockW)/2);
-        offY = Math.floor(h * 0.10);              // << logo near TOP (10% from top)
+          offY = Math.floor(h * 0.06);              // raise KOMMANDO ASCII closer to the top
 
         for (let r=0;r<rows;r++){
           const line = lines[r];
@@ -316,7 +316,7 @@
 
         let left = offX + logoBox.w + gutter;
         left = Math.min(left, w - sTotalW - rightPad);
-        const top  = Math.max(16, Math.floor((h - sTotalH)/2)); // vertically centered overall
+          const top  = Math.max(12, Math.floor((h - sTotalH)/2) - Math.floor(h*0.08)); // nudge skull ASCII upward
 
         skullGeom = { left, top, cols:sCols, rows:sRows, chW:sChW, chH:sChH, fontPx:sFontPx };
       }
@@ -454,7 +454,7 @@
       function startTypewriter(){
         const maxW = Math.floor(logoBox.w*0.95);
         const ts = Math.min(64, Math.max(18, Math.floor(maxW/(TYPE_TEXT.length*0.62))));
-        const y  = Math.min(h*0.40, logoBox.y + logoBox.h + Math.max(16, Math.floor(logoBox.h*0.06))); // keep upper half
+        const y  = Math.min(h*0.52, logoBox.y + logoBox.h + Math.max(20, Math.floor(logoBox.h*0.08))); // allow FOG OF WAR to sit lower
         const cx = Math.floor(logoBox.x + logoBox.w/2);
 
         let idx=0, typing=true, caretOn=true;

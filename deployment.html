@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>KOMMANDO — FOG OF WAR</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Special+Elite&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#000; --ink:#e8e8e8; --muted:#bdbdbd; --accent:#b30000;
+    --col-gap: 18px;
+    --left-max: 580px;
+    --type-ms: 24;
+    --reveal-ms: 1200;
+  }
+  html,body{height:100%; overflow:hidden;}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:'Share Tech Mono', ui-monospace, Menlo, Consolas, monospace;
+    display:grid; place-items:center;
+  }
+
+  .frame{
+    width:min(980px, 96vw);
+    height:min(560px, 90vh);
+    background:#060606; position:relative; overflow:hidden;
+    box-shadow:0 0 0 1px #111 inset;
+    display:grid;
+    grid-template-columns: minmax(340px, var(--left-max)) minmax(240px, 1fr);
+    gap:var(--col-gap);
+    padding:18px 18px 44px 18px;
+    align-items:start;
+    box-sizing:border-box;
+  }
+
+  .left{
+    align-self:start;
+    padding:0 10px 0 0;
+    font-family:'Special Elite','Share Tech Mono',monospace;
+    font-variant-ligatures:none;
+    font-size: clamp(14px, 1.4vw, 18px);
+    line-height:1.28;
+    letter-spacing:.01em;
+  }
+  .kicker{
+    color:var(--muted);
+    font-size:.9em;
+    margin:0 0 5px 0;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .block{ margin:3px 0 3px; white-space:pre-wrap; }
+  .sep{ opacity:.4; margin:2px 0 }
+
+  .right{
+    position:relative; overflow:hidden;
+    border-left:1px solid #111;
+    padding-left:var(--col-gap);
+    align-self:start;
+    height:min(100%, 380px);
+    max-height:380px;
+    min-height:210px;
+  }
+
+  canvas{ position:absolute; inset:0; display:block }
+
+  .cta{
+    position:fixed;
+    left:50%;
+    top:90%;
+    transform:translate(-50%, -50%);
+    z-index:5;
+    pointer-events:none;
+  }
+  .cta .btn{ pointer-events:auto; }
+
+  .btn{
+    display:inline-block;
+    text-decoration:none; cursor:pointer;
+    border:1px solid var(--accent); color:#ffd7d7; background:#120000;
+    font-family:'Share Tech Mono', monospace;
+    font-size: clamp(11px, 1.3vw, 13px);
+    letter-spacing:.04em; padding:.45rem .75rem; border-radius:7px;
+    box-shadow:0 0 0 1px #2a0000 inset, 0 0 14px rgba(255,0,0,.12);
+    transition: transform .12s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease;
+  }
+  .btn:hover, .btn:focus-visible{
+    outline:none; transform:translateY(-1px);
+    border-color:#ff2a2a; background:#240000;
+    box-shadow:0 0 0 1px #3a0000 inset, 0 0 24px rgba(255,0,0,.18);
+  }
+
+  .meta{
+    position:absolute; right:14px; bottom:14px; opacity:.55;
+    font-size:9px; letter-spacing:.05em; white-space:nowrap;
+  }
+
+  @media (max-height: 560px){ .meta{ display:none; } }
+</style>
+</head>
+<body>
+  <main class="frame">
+    <!-- LEFT TEXT -->
+    <section class="left" id="typewrap" aria-label="Intro text">
+      <div class="kicker">KOMMANDO — FOG OF WAR</div>
+      <div class="block" data-type>
+[ TRANSMISSION: ██-██-1979 / CLASSIFIED CHANNEL 0XDEAD ]
+
+> OPERATION: TERMINAL OPS  
+> SUBJECT: JACK KELLER, FORMER SPECIAL FORCES  
+> CONDITION: UNSTABLE. RECURRING VISIONS. PARANOID IDEATION.
+      </div>
+      <div class="sep">────────────</div>
+      <div class="block" data-type>
+You wake in a room you don’t remember.  
+The walls hum with static.  
+Rain leaks through the ceiling — it smells like cordite and rot.
+      </div>
+      <div class="block" data-type>
+Orders loop on the CRT:
+— CLEAN THE STREETS  
+— PURGE THE JUNGLE  
+— ELIMINATE HOSTILES
+      </div>
+      <div class="block" data-type>
+But the streets are empty.  
+And the jungle is growing through the concrete.
+      </div>
+      <div class="block" data-type>
+Your rifle is still warm.
+
+Welcome back, soldier.  
+DESCEND INTO MEMORY.
+      </div>
+    </section>
+
+    <!-- RIGHT ASCII PANEL -->
+    <aside class="right" aria-label="ASCII image">
+      <canvas id="asciiCanvas"></canvas>
+      <script type="text/plain" id="asciiArt">
+  ###########################'`################################
+  ###########################  V##'############################
+  #########################V'  `V  ############################
+  ########################V'      ,############################
+  #########`#############V      ,A###########################V
+  ########' `###########V      ,###########################V',#
+  ######V'   ###########l      ,####################V~~~~'',###
+  #####V'    ###########l      ##P' ###########V~~'   ,A#######
+  #####l      d#########l      V'  ,#######V~'       A#########
+  #####l      ##########l         ,####V''         ,###########
+  #####l        `V######l        ,###V'   .....;A##############
+  #####A,         `######A,     ,##V' ,A#######################
+  #######A,        `######A,    #V'  A########'''''##########''
+  ##########,,,       `####A,           `#''           '''  ,,,
+  #############A,                               ,,,     ,######
+  ######################oooo,                 ;####, ,#########
+  ##################P'                   A,   ;#####V##########
+  #####P'    ''''       ,###             `#,     `V############
+  ##P'                ,d###;              ##,       `V#########
+  ##########A,,   #########A              )##,    ##A,..,ooA###
+  #############A, Y#########A,            )####, ,#############
+  ###############A ############A,        ,###### ##############
+  ###############################       ,#######V##############
+  ###############################      ,#######################
+  ##############################P    ,d########################
+  ##############################'    d#########################
+  ##############################     ##########################
+  ##############################     ##########################
+  #############################P     ##########################
+  #############################'     ##########################
+  ############################P      ##########################
+  ###########################P'     ;##########################
+  ###########################'     ,###########################
+  ##########################       ############################
+  #########################       ,############################
+  ########################        d###########P'    `Y#########
+  #######################        ,############        #########
+  ######################        ,#############        #########
+  #####################        ,##############b.    ,d#########
+  ####################        ,################################
+  ###################         #################################
+  ##################          #######################P'  `V##P'
+  #######P'     `V#           ###################P'
+  #####P'                    ,#################P'
+  ###P'                      d##############P''
+  ##P'                       V##############'
+  #P'                         `V###########'
+  #'                             `V##P'
+                                                          GNN94
+      </script>
+    </aside>
+
+    <!-- CTA -->
+    <div class="cta">
+      <a class="btn" href="index.html" aria-label="Start Level 1">START LEVEL ▸</a>
+    </div>
+
+    <div class="meta">© KOMMANDO — FOG OF WAR</div>
+  </main>
+
+<script>
+(() => {
+  /* Typewriter (tight) */
+  const blocks = [...document.querySelectorAll('[data-type]')];
+  const base = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--type-ms')) || 24;
+  let delay = 0;
+  blocks.forEach(el => {
+    const full = el.textContent;
+    const normalized = full.replace(/\n{2,}/g, '\n').trim();
+    el.textContent = '';
+    [...normalized].forEach((ch, i) => {
+      setTimeout(() => { el.textContent += ch; }, delay + i*base + Math.random()*5);
+    });
+    delay += normalized.length * base + 260;
+  });
+
+  /* ASCII: centered layout, integer line steps, 1:1 CSS pixels */
+  const cvs = document.getElementById('asciiCanvas');
+  const ctx = cvs.getContext('2d');
+  const artRaw = document.getElementById('asciiArt').textContent; // keep trailing spaces
+  const lines = artRaw.split('\n');
+
+  function fit(){
+    const rect = cvs.parentElement.getBoundingClientRect();
+    // 1:1 CSS pixels — no DPR scaling (prevents fractional rounding drift)
+    cvs.width = Math.max(1, Math.floor(rect.width));
+    cvs.height = Math.max(1, Math.floor(rect.height));
+    cvs.style.width = rect.width + 'px';
+    cvs.style.height = rect.height + 'px';
+    ctx.setTransform(1,0,0,1,0,0);
+  }
+
+  function render(tNorm){
+    ctx.clearRect(0,0,cvs.width, cvs.height);
+    if(!lines.length) return;
+
+    const cols = Math.max(...lines.map(l => l.length));
+    const rows = lines.length;
+    const w = cvs.width, h = cvs.height;
+
+    // Fit with margins; integer px
+    const marginCols = 4, marginRows = 4;
+    let px = Math.floor(
+      Math.min(
+        w / Math.max(10, cols + marginCols),
+        h / Math.max(8, rows + marginRows)
+      )
+    );
+    px = Math.max(7, Math.min(px, 16));
+
+    ctx.font = `${px}px "Share Tech Mono", monospace`;
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = '#e6e6e6';
+
+    const lineH = Math.max(1, Math.round(px * 1.1));  // integer line advance
+    const charW = ctx.measureText('M').width || px;
+    const blockW = charW * cols;
+    const blockH = lineH * rows;
+    const left = Math.max(10, Math.round((w - blockW) / 2));
+    const top  = Math.max(10, Math.round((h - blockH) / 2));
+
+    const revealCols = Math.floor(cols * tNorm);
+
+    for(let r=0; r<rows; r++){
+      const line = lines[r] || '';
+      const slice = line.slice(0, revealCols);
+      if(slice) ctx.fillText(slice, left, top + r*lineH);
+    }
+
+    // subtle scanlines (optional; comment out if you want)
+    ctx.globalAlpha = 0.06;
+    ctx.fillStyle = '#ffffff';
+    for(let y=0; y<h; y+=3) ctx.fillRect(0,y,w,1);
+    ctx.globalAlpha = 1;
+  }
+
+  fit();
+  let start = performance.now();
+  const total = (parseInt(getComputedStyle(document.documentElement).getPropertyValue('--reveal-ms')) || 1200);
+  function tick(now){
+    const t = Math.min(1, (now - start)/total);
+    render(t);
+    if(t < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+  addEventListener('resize', () => { fit(); start = performance.now(); requestAnimationFrame(tick); }, {passive:true});
+})();
+</script>
+</body>
+</html>
