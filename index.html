@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
@@ -11,9 +11,11 @@
   :root{ --bg:#000; --ink:#e4e7ea; --hud:#0a0d10; --accent:#7efc6b; --danger:#ff5050; --hudBorder:#1a1f25; }
   html,body{height:100%}
   body{margin:0; background:var(--bg); color:var(--ink); font-family:'VT323', ui-monospace, Menlo, Consolas, monospace; overflow:hidden;}
+
   .app{display:grid; grid-template-rows: 1fr min(10vh, 110px); height:100vh; width:100vw; padding:8px; box-sizing:border-box; gap:8px; justify-items:center; align-content:center;}
   .view{position:relative; width:min(100%, 960px); height:100%; background:#050607; border:1px solid #111; border-radius:10px; overflow:hidden; margin:0 auto; box-sizing:border-box; padding-bottom:4px;}
   canvas{display:block; width:100%; height:calc(100% - 4px); image-rendering:pixelated; box-sizing:border-box}
+
   .hud-bottom{display:flex; align-items:center; gap:12px; padding:8px 14px; background:linear-gradient(180deg, rgba(7,11,15,.98), rgba(6,9,13,.96)); border:1px solid var(--hudBorder); border-radius:10px; width:min(100%, 960px); margin:0 auto; box-sizing:border-box; overflow:hidden; font-size:15px;}
   .hud-bottom *{font-family:'VT323', ui-monospace, Menlo, Consolas, monospace;}
   .logo{font-family:'Share Tech Mono',ui-monospace,monospace !important; font-size:3px; line-height:3px; letter-spacing:0; white-space:pre; display:block; color:var(--ink); opacity:.9; margin:0 8px 0 0; max-width:100%; overflow:hidden;} 
@@ -31,6 +33,7 @@
   .hud-row span{white-space:nowrap;}
   .hud-controls{opacity:.85; gap:6px;}
   .hud-controls .separator{opacity:.7;}
+
   @media (max-width: 1024px){
     .logo{display:none}
     .hud-bottom{gap:10px; padding:6px 8px}
@@ -78,12 +81,10 @@
       </div>
       <div class="sep"></div>
       <div class="hud-col controls">
-        <div class="hud-row hud-controls">
-          <span>Move</span><span class="kbd">WASD</span><span class="separator">/</span><span>Arrow Keys</span><span class="separator">&bull;</span><span>Shoot</span><span class="kbd">Space</span>
-        </div>
-      </div>
+      <div class="hud-row hud-controls"><span>Move</span><span class="kbd">WASD</span><span class="separator">/</span><span>Arrow Keys</span><span class="separator">•</span><span>Shoot</span><span class="kbd">Space</span></div></div>
     </div>
   </div>
+
 <script>
 /**********************
  * CONFIG & CONSTANTS *
@@ -92,17 +93,20 @@ const TILE_W = 16;
 const TILE_H = 18;
 const GRID_W = 60;
 const GRID_H = 30;
+
 // realtime timing (ms)
 const MOVE_COOLDOWN   = 70;
 const ENEMY_COOLDOWN  = 130;
 const BULLET_COOLDOWN = 140;
 const BULLET_SPEED    = 0.55;
 const SANITY_DRAIN_PS = 3;
+
 // earthy brownish tile colors
 const COLOR_WALL = '#8a4b3a';
 const COLOR_WALL_DARK = '#51302a';
 const COLOR_FLOOR_LIT = '#3c2a28';
 const COLOR_FLOOR_SEEN = '#2a1f1d';
+
 const Glyphs = {
   floor:   { ch:' ', fg:COLOR_FLOOR_LIT, bg:null },
   wall:    { ch:'█', fg:COLOR_WALL, bg:null },
@@ -114,6 +118,7 @@ const Glyphs = {
   palm:    { ch:'♣', fg:'#37d065', bg:null },
   mine:    { ch:'×', fg:'#ffd94d', bg:null },
 };
+
 const PALETTES = {
   reality:   { name:'Reality',   tint:[0.65,0.78,1.25], bg:'#0c131d', lampColor:'rgba(150,180,230,0.32)', rainColor:'rgba(135,165,215,0.6)' },
   jungle:    { name:'Flashback', tint:[0.75,1.18,0.75], bg:'#041407', fogColor:'rgba(14,60,28,0.55)', flash:'#ffd94d', tracer:'#ffe871' },
@@ -121,6 +126,7 @@ const PALETTES = {
   psychosis: { name:'Psychosis', tint:[1.0,1.0,1.0], bg:'#050505', flash:'#aa0000', mode:'bw' },
   collapse:  { name:'Collapse',  tint:[1.10,1.05,1.15], bg:'#040404', flash:'#b8a37a', static:'#d0d0d0' },
 };
+
 const LEVELS = [
   { id:1, key:'reality',   name:'WELCOME HOME',           enemies:1,  diamonds:1,  mines:0 },
   { id:2, key:'jungle',    name:'FLASHBACK',              enemies:1,  diamonds:1, mines:0,
@@ -132,6 +138,7 @@ const LEVELS = [
   { id:5, key:'collapse',  name:'EXTRACTION',             enemies:1, diamonds:1, mines:1,
     complexity:{ rooms:15, connectors:6, carveSeeds:3, carveStepMul:1.5 } },
 ];
+
 // ASCII assets
 const ASCII_RIP = [
 "⠀⠀⠀⠀⣀⠤⠔⠒⠒⠒⠒⠒⠒⠒⠦⢄⠀⠀⠀⠀⠀",
@@ -149,6 +156,7 @@ const ASCII_RIP = [
 "⠀⠀⠀⠀⠈⢧⡀⠀⠉⠉⠉⠉⠁⠀⣀⠜⠀⠀⠀⠀⠀",
 "⠀⠀⠀⠀⠀⠀⠉⠓⠢⠤⠤⠤⠔⠊⠁⠀⠀⠀⠀⠀⠀"
 ];
+
 const ASCII_GAMEOVER = [
 " ░▒▓██████▓▒░ ░▒▓██████▓▒░░▒▓██████████████▓▒░░▒▓████████▓▒░       ░▒▓██████▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓████████▓▒░▒▓███████▓▒░  ",
 "░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░             ░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░░▒▓█▓▒░▒▓█▓▒░      ░▒▓█▓▒░░▒▓█▓▒░ ",
@@ -160,6 +168,7 @@ const ASCII_GAMEOVER = [
 "                                                                                                                        ",
 "                                                                                                                        "
 ];
+
 /**********************
  * UTILS & LOG
  **********************/
@@ -168,6 +177,7 @@ const rand =(n)=>Math.floor(Math.random()*n);
 const choice=(arr)=>arr[rand(arr.length)];
 const manhattan=(x1,y1,x2,y2)=>Math.abs(x1-x2)+Math.abs(y1-y2);
 function log(msg){ try{ console.log('[LOG]', msg);}catch(_){} }
+
 /**********************
  * VISUAL HELPERS
  **********************/
@@ -176,6 +186,7 @@ function wallGlyph(x,y,key){
   if(key==='jungle') return (r<3)?'▓':(r<6)?'▒':'█';
   return (r<2)?'█':(r<4)?'▓':'▒';
 }
+
 /**********************
  * FOV (shadowcasting)
  **********************/
@@ -213,10 +224,12 @@ function computeFOV(map, ox, oy, radius=12){
   }
   return vis;
 }
+
 /**********************
  * WORLD & MAP GEN
  **********************/
 class RNG{constructor(seed=Date.now()%1e9){this.s=seed>>>0;} next(){let x=this.s; x^=x<<13; x^=x>>>17; x^=x<<5; this.s=x>>>0; return this.s/0xFFFFFFFF;} int(n){return Math.floor(this.next()*n);} }
+
 class Map{
   constructor(w,h){
     const W=Math.max(5,Number.isFinite(w)?Math.floor(w):0);
@@ -225,14 +238,17 @@ class Map{
   }
   idx(x,y){return y*this.w+x;} inb(x,y){return x>=0&&y>=0&&x<this.w&&y<this.h;} isWall(x,y){return this.cells[this.idx(x,y)]===1;} carve(x,y){this.cells[this.idx(x,y)]=0;}
   carveRect(x0,y0,x1,y1){ const xA=Math.max(1,Math.min(x0,x1)), xB=Math.min(this.w-2,Math.max(x0,x1)); const yA=Math.max(1,Math.min(y0,y1)), yB=Math.min(this.h-2,Math.max(y0,y1)); for(let y=yA;y<=yB;y++) for(let x=xA;x<=xB;x++) this.carve(x,y); }
+
   generate(seed, opts={}){
     const rng=new RNG(seed);
     const w=this.w,h=this.h; const id=(x,y)=>y*w+x; const cells=this.cells;
     for(let i=0;i<cells.length;i++) cells[i]=1;
+
     const targetRooms = opts.rooms ?? 10;
     const extraConnect = opts.connectors ?? 2;
     const carveSeeds = opts.carveSeeds ?? (1 + rand(2));
     const carveStepMul = opts.carveStepMul ?? 1.0;
+
     const rooms=[]; let attempts=0;
     while(rooms.length<targetRooms && attempts<targetRooms*40){
       attempts++;
@@ -245,6 +261,7 @@ class Map{
       let overlaps=false; for(const r of rooms){ if(!(rect.x+rect.w+1<r.x || r.x+r.w+1<rect.x || rect.y+rect.h+1<r.y || r.y+r.h+1<rect.y)){ overlaps=true; break; } }
       if(!overlaps){ rooms.push(rect); this.carveRect(rect.x,rect.y,rect.x+rect.w,rect.y+rect.h); }
     }
+
     const centers=rooms.map(r=>[r.cx,r.cy]);
     function digL(ax,ay,bx,by){ let x=ax,y=ay; while(x!==bx){ x += (bx>x)?1:-1; cells[id(x,y)]=0; } while(y!==by){ y += (by>y)?1:-1; cells[id(x,y)]=0; } cells[id(bx,by)]=0; }
     if(centers.length){
@@ -260,11 +277,13 @@ class Map{
       }
       for(let k=0;k<extraConnect;k++){ const a=rand(N), b=rand(N); if(a!==b) digL(centers[a][0],centers[a][1], centers[b][0],centers[b][1]); }
     }
+
     // sparse carve in odd grid
     const odd = v => (v%2===1);
     const inOddGrid=(x,y)=> x>1&&y>1&&x<w-2&&y<h-2&&odd(x)&&odd(y);
     const dirs=[[2,0],[-2,0],[0,2],[0,-2]];
     function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
     function carveSparseFrom(sx,sy,stepsMax){
       let steps=0; const st=[[sx,sy]]; cells[id(sx,sy)]=0;
       while(st.length && steps<stepsMax){
@@ -286,6 +305,7 @@ class Map{
       const stepsMax = Math.floor((w*h)*0.008 * carveStepMul);
       if(inOddGrid(sx,sy)) carveSparseFrom(sx,sy,stepsMax);
     }
+
     // keep largest region
     const reg=new Array(w*h).fill(-1); let rid=0; const areas=[];
     for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++) if(cells[id(x,y)]===0 && reg[id(x,y)]===-1){
@@ -300,18 +320,22 @@ class Map{
       areas[rid]=a; rid++;
     }
     const best=areas.length?areas.indexOf(Math.max(...areas)):-1; if(best>=0){ for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++) if(reg[id(x,y)]!==best) cells[id(x,y)]=1; }
+
     // widen if too cramped
     const openCount=()=>cells.reduce((a,c)=>a+(c===0?1:0),0); const floors=openCount(); const min=Math.floor(w*h*0.20);
     if(floors<min){ for(let y=2;y<h-2;y++) for(let x=2;x<w-2;x++){ if(cells[id(x,y)]===1){ let n=0; if(cells[id(x+1,y)]===0)n++; if(cells[id(x-1,y)]===0)n++; if(cells[id(x,y+1)]===0)n++; if(cells[id(x,y-1)]===0)n++; if(n>=3) cells[id(x,y)]=0; } } }
+
     // hard borders
     for(let x=0;x<w;x++){ cells[id(x,0)]=1; cells[id(x,h-1)]=1; }
     for(let y=0;y<h;y++){ cells[id(0,y)]=1; cells[id(w-1,y)]=1; }
   }
 }
+
 /**********************
  * ENTITIES & SYSTEMS
  **********************/
 class Entity{ constructor(x,y,t){ this.x=x; this.y=y; this.type=t; this.hp=1; this.cool=0; this.tx=x; this.ty=y; this.fast=false; } }
+
 class Game{
   centerStage(){
     const container = document.querySelector('.view');
@@ -340,18 +364,23 @@ class Game{
     this.keys=new Set();
     this.last=0; this.lastMove=0; this.lastEnemy=0; this.lastShot=0;
     this.flashT=0; this.flashColor=null; this.glitchT=0;
+
     // FX
     this.gunfireT = 0;           // L2
     this.enemyInterval = ENEMY_COOLDOWN;
+
     // L3 paranoia
     this.paranoiaSweepT = 0;
     this.phantoms = [];
+
     // L4 psychosis
     this.controlInvertT = 0;
+
     // L5 collapse
     this.trail = [];
     this.collapseTimer = 0;
     this.extractionCountdown = null;
+
     // misc
     this.sanityMul = 1.0;
     this.levelTicks = 0;
@@ -360,8 +389,10 @@ class Game{
     this.state='play';
     this.melt=null;
     this.transitioning = false;
+
     this.resetLevel();
     this.bindInput();
+
     this.fitCanvas = this.fitCanvas.bind(this);
     this.fitCanvas();
     this.centerStage();
@@ -369,18 +400,22 @@ class Game{
     window.addEventListener('resize', this.fitCanvas);
     requestAnimationFrame(this.loop.bind(this));
   }
+
   resetLevel(){
     const spec=LEVELS[this.levelIndex];
     this.levelTicks = 0;
     this.rainSeed = Math.random()*1000;
     this.staticSeed = Math.random()*1000;
+
     // Map
     this.map=new Map(GRID_W,GRID_H);
     this.map.generate(this.rng.int(1e9), spec.complexity || {});
+
     // Player
     let px=1,py=1; do{ px=2+rand(this.map.w-4); py=2+rand(this.map.h-4);} while(this.map.isWall(px,py));
     this.player=new Entity(px,py,'jack');
     this.entities=[this.player];
+
     // Enemies
     for(let i=0;i<spec.enemies;i++){
       let ex=1,ey=1; do{ ex=rand(this.map.w); ey=rand(this.map.h);} while(this.map.isWall(ex,ey));
@@ -388,6 +423,7 @@ class Game{
       if(spec.key==='psychosis' && Math.random()<0.35){ e.fast=true; }
       this.entities.push(e);
     }
+
     // Diamonds
     this.diamonds=new Set();
     const totalCells = this.map.w * this.map.h;
@@ -403,10 +439,13 @@ class Game{
       this.diamonds.add(idx); d++;
     }
     this.diamondGoal = this.diamonds.size;
+
     // Exit
     let ex=px,ey=py,tries=0; do{ ex=2+rand(this.map.w-4); ey=2+rand(this.map.h-4); tries++; } while((Math.abs(ex-px)+Math.abs(ey-py)<24 || this.map.isWall(ex,ey)) && tries<2000); this.exit=ey*this.map.w+ex;
+
     // Bullets & seen
     this.bullets=[]; this.seen=new Set(); this.sanity=100; this.ammo=24; this.lastDir=[1,0];
+
     // Mines
     this.mines = new Set();
     const wantedMines = spec.mines || 0;
@@ -425,6 +464,7 @@ class Game{
       placed++;
     }
     this.mineGoal = placed;
+
     // Decor
     this.decor = new globalThis.Map();
     const placeDecor = (count, glyph)=>{
@@ -438,6 +478,7 @@ class Game{
       }
     };
     const levelKey=spec.key; if(levelKey==='jungle'||levelKey==='paranoia'){ placeDecor(16,{ch:Glyphs.palm.ch,fg:Glyphs.palm.fg}); }
+
     // Level specifics
     this.enemyInterval = (spec.key==='jungle') ? Math.max(80, ENEMY_COOLDOWN * 0.75) : ENEMY_COOLDOWN;
     this.gunfireT = 0;
@@ -446,6 +487,7 @@ class Game{
     this.collapseTimer = (spec.key==='collapse') ? 900 : 0;
     this.extractionCountdown = null;
     this.sanityMul = (spec.key==='collapse') ? 1.35 : 1.0;
+
     // L3 phantoms
     if(spec.key==='paranoia'){
       this.phantoms = [];
@@ -462,11 +504,14 @@ class Game{
     } else {
       this.phantoms = [];
     }
+
     document.getElementById('levelName').textContent=spec.name;
     this.updateHUD();
+
     this.state='play'; this.melt=null;
     log(`[LEVEL ${spec.id}] ${spec.name} — Collect all memory fragments (♦) then reach >`);
   }
+
   startMelt(){
     const w=this.canvas.width, h=this.canvas.height;
     const off=document.createElement('canvas'); off.width=w; off.height=h; const octx=off.getContext('2d');
@@ -476,6 +521,7 @@ class Game{
     this.melt={off:off, colW, cols, offs, vels, done:false, timer:0};
     this.state='melting';
   }
+
   renderMelt(dt){
     const m=this.melt; if(!m) return;
     const ctx=this.ctx; const w=this.canvas.width, h=this.canvas.height; ctx.clearRect(0,0,w,h);
@@ -487,12 +533,14 @@ class Game{
     ctx.globalAlpha=0.15; ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h); ctx.globalAlpha=1;
     const avg = m.offs.reduce((a,c)=>a+c,0)/m.cols; if(avg>h*1.1){ this.state='gameover'; }
   }
+
   renderGameOver(){
     const ctx=this.ctx;
     const w=this.canvas.width, h=this.canvas.height;
     ctx.save();
     ctx.setTransform(1,0,0,1,0,0);
     ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h);
+
     const baseW=960, baseH=576;
     const scale=Math.min(w/baseW,h/baseH);
     const offsetX=(w-baseW*scale)*0.5;
@@ -500,18 +548,25 @@ class Game{
     ctx.translate(offsetX,offsetY);
     ctx.scale(scale,scale);
     ctx.textAlign='center'; ctx.textBaseline='top';
+
     const cx=baseW/2;
     ctx.fillStyle='#ff4040'; ctx.font='14px "VT323", monospace';
     let by=24; for(const line of ASCII_GAMEOVER){ ctx.fillText(line, cx, by); by+=16; }
+
     ctx.fillStyle='#ff3c3c'; ctx.font='14px "VT323", monospace';
     let y=140; for(const line of ASCII_RIP){ ctx.fillText(line, cx, y); y+=18; }
+
     ctx.fillStyle = '#ff4040'; ctx.font = '24px "VT323", monospace';
     ctx.fillText('EXTRACTION FAILED', cx, y + 12);
+
     ctx.fillStyle='#7efc6b'; ctx.font='16px "VT323", monospace';
     ctx.fillText('Press any key to descend again.', cx, baseH-56);
+
     ctx.restore();
   }
+
   pickNewPatrol(e){ let tx,ty; do{ tx=rand(this.map.w); ty=rand(this.map.h); } while(this.map.isWall(tx,ty)); e.tx=tx; e.ty=ty; }
+
   bindInput(){
     window.addEventListener('keydown',(e)=>{
       const k=e.key.toLowerCase();
@@ -524,14 +579,18 @@ class Game{
     });
     window.addEventListener('keyup',(e)=>{ this.keys.delete(e.key.toLowerCase()); });
   }
+
   canStep(x,y){ return this.map.inb(x,y) && !this.map.isWall(x,y); }
   stepEntity(ent,dx,dy){ const nx=ent.x+dx, ny=ent.y+dy; if(this.canStep(nx,ny)){ ent.x=nx; ent.y=ny; return true; } return false; }
+
   tryMovePlayer(){
     let dx=0,dy=0;
     if(this.keys.has('arrowup')||this.keys.has('w')) dy=-1; else if(this.keys.has('arrowdown')||this.keys.has('s')) dy=1;
     if(this.keys.has('arrowleft')||this.keys.has('a')) dx=-1; else if(this.keys.has('arrowright')||this.keys.has('d')) dx=1;
+
     // L4 psychosis: invert controls while panic active
     if(this.controlInvertT>0){ dx=-dx; dy=-dy; }
+
     if(dx||dy){
       this.lastDir=[dx,dy];
       if(this.stepEntity(this.player,dx,dy)){
@@ -544,6 +603,7 @@ class Game{
       }
     }
   }
+
   shoot(){
     if(this.ammo<=0) return;
     this.ammo--;
@@ -551,6 +611,7 @@ class Game{
     this.bullets.push({x:this.player.x+dx*0.1,y:this.player.y+dy*0.1,dx,dy,life:140});
     this.updateHUD();
   }
+
   updateBullets(dt){
     const speed=BULLET_SPEED*dt;
     this.bullets=this.bullets.filter(b=>{
@@ -564,10 +625,13 @@ class Game{
       return true;
     });
   }
+
   updateEnemies(){
     const spec=LEVELS[this.levelIndex];
+
     for(const e of this.entities){
       if(e.type!=='enemy') continue;
+
       // L3: paranoia chase LoS / proximity
       if(spec.key==='paranoia'){
         const dist = manhattan(e.x,e.y,this.player.x,this.player.y);
@@ -591,6 +655,7 @@ class Game{
       }else{
         if(e.x===e.tx&&e.y===e.ty) this.pickNewPatrol(e);
       }
+
       const stepOnce = ()=>{
         const dx=Math.sign(e.tx-e.x), dy=Math.sign(e.ty-e.y);
         let moved=false;
@@ -601,11 +666,14 @@ class Game{
           if(Math.random()<0.3) this.pickNewPatrol(e);
         }
       };
+
       // L4: fast stalkers move twice
       stepOnce();
       if(spec.key==='psychosis' && e.fast) stepOnce();
+
       if(e.x===this.player.x&&e.y===this.player.y){ this.onPlayerHit(); }
     }
+
     // L2 reinforcement
     if(spec.key==='jungle' && Math.random()<0.05 && this.entities.filter(e=>e.type==='enemy').length < spec.enemies+4){
       let ex=1,ey=1; let tries=0;
@@ -614,7 +682,9 @@ class Game{
       const e=new Entity(ex,ey,'enemy'); this.pickNewPatrol(e); this.entities.push(e);
     }
   }
+
   onPlayerHit(){ log('CAUGHT — GAME OVER'); this.startMelt(); }
+
   collectAtPlayer(){
     const idx=this.player.y*this.map.w+this.player.x;
     if(this.diamonds.has(idx)){
@@ -622,6 +692,7 @@ class Game{
       this.sanity=clamp(this.sanity+5,0,100);
       this.flashT=12; this.flashColor='#ffd400'; this.glitchT=Math.max(this.glitchT,24);
       this.updateHUD();
+
       // L5: start extraction countdown when last fragment taken
       if(this.diamonds.size===0){
         log('All memory fragments collected — Exit unlocked.');
@@ -632,6 +703,7 @@ class Game{
       }
     }
   }
+
   checkMine(){
     const idx=this.player.y*this.map.w+this.player.x;
     if(this.mines.has(idx)){
@@ -644,22 +716,27 @@ class Game{
       if(this.sanity<=0){ log('Mine detonation — sanity collapse'); this.startMelt(); }
     }
   }
+
   currentFlashColor(){
     const spec=LEVELS[this.levelIndex]; const pal=PALETTES[spec.key];
     return pal.flash || '#aa0000';
   }
+
   crumbleOne(){
     if(!this.trail.length) return;
     const pickIndex = Math.max(0, this.trail.length - 30);
     const idx = this.trail.splice(pickIndex,1)[0] ?? this.trail.shift();
     if(idx==null) return;
     const x = idx % this.map.w, y = (idx / this.map.w) | 0;
+
     const pidx=this.player.y*this.map.w+this.player.x;
     if(idx===pidx || idx===this.exit) return;
+
     this.map.cells[idx]=1;
     this.diamonds.delete(idx);
     this.mines.delete(idx);
     this.decor.delete(idx);
+
     for(const e of this.entities){
       if(e.type!=='enemy') continue;
       if(e.x===x && e.y===y){
@@ -670,16 +747,20 @@ class Game{
     this.flashColor = this.currentFlashColor();
     this.flashT = 8;
   }
+
   render(){
     const ctx=this.ctx, spec=LEVELS[this.levelIndex], pal=PALETTES[spec.key];
     if(this.state==='melting'){ return; }
     if(this.state==='gameover'){ this.renderGameOver(); return; }
+
     // L5 quake jitter
     if(spec.key==='collapse' && Math.random()<0.35){
       ctx.save();
       ctx.translate((Math.random()-0.5)*2, (Math.random()-0.5)*2);
     }
+
     ctx.imageSmoothingEnabled=false; ctx.fillStyle=pal.bg; ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
+
     if(spec.key==='reality'){
       const lampCount = Math.max(2, Math.floor(this.canvas.width / 260));
       const lampColor = pal.lampColor || 'rgba(145,170,210,0.32)';
@@ -711,11 +792,14 @@ class Game{
       }
       ctx.globalAlpha = 1;
     }
+
     // L2 gunfire cadence
     if(spec.key==='jungle'){
       if(this.gunfireT<=0 && Math.random()<0.04){ this.gunfireT = 4 + rand(6); }
     }
+
     const vis=computeFOV(this.map,this.player.x,this.player.y,12); for(const i of vis) this.seen.add(i);
+
     // Tiles
     for(let y=0;y<this.map.h;y++){
       for(let x=0;x<this.map.w;x++){
@@ -726,6 +810,7 @@ class Game{
         } else {
           if(visible){ this.drawChar('.',x*TILE_W,y*TILE_H, COLOR_FLOOR_LIT); }
           else if(seen){ this.drawChar('·',x*TILE_W,y*TILE_H, COLOR_FLOOR_SEEN); }
+
           if(this.decor && this.decor.has(i) && (visible||seen)){
             const d=this.decor.get(i); this.drawCharExact(d.ch, x*TILE_W, y*TILE_H, d.fg);
           }
@@ -742,6 +827,7 @@ class Game{
         }
       }
     }
+
     // Entities
     for(const e of this.entities){
       if(e.type==='jack'){
@@ -755,12 +841,14 @@ class Game{
         this.drawCharExact(Glyphs.enemy.ch,e.x*TILE_W,e.y*TILE_H,color);
       }
     }
+
     // Bullets
     for(const b of this.bullets){
       const ix=Math.round(b.x), iy=Math.round(b.y);
       const i=iy*this.map.w+ix; if(!vis.has(i)) continue;
       this.drawChar(Glyphs.bullet.ch, ix*TILE_W, iy*TILE_H, Glyphs.bullet.fg);
     }
+
     // L2 tracers
     if(spec.key==='jungle' && this.gunfireT>0){
       const n=80; ctx.globalAlpha=0.75;
@@ -771,6 +859,7 @@ class Game{
       }
       ctx.globalAlpha=1; this.gunfireT--;
     }
+
     // L3 phantoms
     if(spec.key==='paranoia' && this.sanity<65 && this.phantoms.length){
       ctx.globalAlpha = 0.85;
@@ -781,6 +870,7 @@ class Game{
       }
       ctx.globalAlpha = 1;
     }
+
     // Standard hits/glitches
     if(this.glitchT>0){
       const n=120; ctx.globalAlpha=0.9;
@@ -792,6 +882,7 @@ class Game{
       ctx.globalAlpha=0.10; ctx.fillStyle=this.flashColor||pal.flash||'#aa0000'; ctx.fillRect(0,0,this.canvas.width,this.canvas.height); ctx.globalAlpha=1;
       if(this.flashT===0) this.flashColor=null;
     }
+
     // L2 global flicker
     if(spec.key==='jungle' && Math.random()<0.02){
       ctx.globalAlpha=0.07;
@@ -799,6 +890,7 @@ class Game{
       ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
       ctx.globalAlpha=1;
     }
+
     // L1 rain + streetlight streaks
     if(spec.key==='reality'){
       ctx.globalAlpha = 0.32;
@@ -819,6 +911,7 @@ class Game{
       ctx.fillRect(0, this.canvas.height-6, this.canvas.width, 6);
       ctx.globalAlpha = 1;
     }
+
     // L3 paranoia film-noise
     if(spec.key==='paranoia'){
       ctx.globalAlpha = 0.18;
@@ -839,6 +932,7 @@ class Game{
       }
       ctx.globalAlpha = 1;
     }
+
     // L4 psychosis strobes
     if(spec.key==='psychosis'){
       if(this.sanity<75 && Math.random()<0.05){
@@ -860,6 +954,7 @@ class Game{
       }
       ctx.globalAlpha = 1;
     }
+
     // L5 collapse static overlay
     if(spec.key==='collapse'){
       ctx.globalAlpha = 0.24;
@@ -874,10 +969,12 @@ class Game{
       }
       ctx.globalAlpha = 1;
     }
+
     if(spec.key==='collapse' && ctx.restore){
       try{ ctx.restore(); }catch(_){}
     }
   }
+
   drawChar(ch,x,y,fg){
     const spec=LEVELS[this.levelIndex]; const pal=PALETTES[spec.key];
     this.ctx.fillStyle=this.themedColor(fg,pal);
@@ -929,12 +1026,15 @@ class Game{
     document.getElementById('diamonds').textContent = `${diamondCollected}/${diamondTotal}`;
     document.getElementById('exitState').textContent=this.diamonds.size===0? 'Unlocked' : 'Locked';
   }
+
   loop(ts){
     const dt = this.last ? (ts - this.last) : 16;
     this.last = ts;
     this.levelTicks += dt;
+
     if(this.state==='melting'){ this.renderMelt(dt); requestAnimationFrame(this.loop.bind(this)); return; }
     if(this.state==='gameover'){ this.renderGameOver(); requestAnimationFrame(this.loop.bind(this)); return; }
+
     // sanity drain (level multipliers)
     this.sanity=clamp(this.sanity-(SANITY_DRAIN_PS*this.sanityMul*dt/1000),0,100);
     if(this.sanity<=0){
@@ -945,16 +1045,20 @@ class Game{
       requestAnimationFrame(this.loop.bind(this));
       return;
     }
+
     // L4: occasionally invert controls during panic
     if(LEVELS[this.levelIndex].key==='psychosis'){
       if(this.controlInvertT<=0 && this.sanity<60 && Math.random()<0.010){ this.controlInvertT = 180; } // ~3s
       if(this.controlInvertT>0){ this.controlInvertT--; }
     }
+
     // Input/AI cadence
     if(ts-this.lastMove>=MOVE_COOLDOWN){ this.tryMovePlayer(); this.lastMove=ts; }
     if(this.keys.has(' ')){ if(ts-this.lastShot>=BULLET_COOLDOWN){ this.shoot(); this.lastShot=ts; } }
     if(ts-this.lastEnemy>=this.enemyInterval){ this.updateEnemies(); this.lastEnemy=ts; }
+
     this.updateBullets(dt);
+
     // L5 crumble & extraction timer
     if(LEVELS[this.levelIndex].key==='collapse'){
       this.collapseTimer -= dt;
@@ -971,6 +1075,7 @@ class Game{
         }
       }
     }
+
     // Safe exit hand-off (FIXED: correct .size and flow)
     const pidx = this.player.y * this.map.w + this.player.x;
     if (!this.transitioning && this.diamonds.size === 0 && pidx === this.exit) {
@@ -990,11 +1095,13 @@ class Game{
       requestAnimationFrame(this.loop.bind(this));
       return;
     }
+
     this.updateHUD();
     this.render();
     requestAnimationFrame(this.loop.bind(this));
   }
 }
+
 /**********************
  * BOOT & API
  **********************/
@@ -1005,6 +1112,7 @@ window.Kommando={
     if(idx>=0){ game.levelIndex=idx; game.resetLevel(); }
   }
 };
+
 /**********************
  * SELF-TESTS (safe)
  **********************/
@@ -1041,3 +1149,4 @@ window.Kommando={
 </script>
 </body>
 </html>
+
