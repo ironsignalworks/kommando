@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="utf-8" />
@@ -43,7 +43,15 @@
 
   <style>
     :root{
-      --bg:#000;
+      --bg:#051307;
+      --ink:#d1d725;
+      --ink-soft:rgba(209,215,37,.78);
+      --hud:#0c1707;
+      --hud2:#081106;
+      --hud-border:#1d2c19;
+      --hud-hi:rgba(255,255,200,.05);
+      --hud-lo:rgba(0,0,0,.45);
+      --accent:#7efc6b;
 
       /* timing */
       --spawn-ms: 2200;     /* drip build */
@@ -56,11 +64,11 @@
       --gutter: 24;
 
       --fade-alpha: 0.010;  /* build-phase decay inside mask */
-      --red-core:   #b30000;/* final solid logo */
-      --ink-a:      rgba(210,0,0,0.70);
-      --ink-b:      rgba(120,0,0,0.55);
-      --ink-tail:   rgba(90,0,0,0.55);
-      --ink-add:    rgba(255,80,80,0.16);
+      --red-core:   #ff0000;/* final solid logo (hovering green) */
+      --ink-a:      rgba(255, 0, 0, 0.7);
+      --ink-b:      rgba(60, 11, 11, 0.58);
+      --ink-tail:   rgba(12, 3, 3, 0.55);
+      --ink-add:    rgba(24, 12, 12, 0.38);
 
       /* physics */
       --grav: 0.050;
@@ -76,13 +84,20 @@
     }
 
     html,body{
-      height:100%; margin:0; background:var(--bg); color:#cfcfcf;
+      height:100%; margin:0; background:var(--bg); color:var(--ink);
       font-family:'Share Tech Mono', monospace;
       display:flex; align-items:center; justify-content:center; overflow:hidden;
     }
     .wrap{
       width:min(1200px,96vw); height:min(720px,92vh);
-      position:relative; background:#060606; box-shadow:0 0 0 1px #111 inset;
+      position:relative; background:var(--hud); border:4px solid var(--hud-border);
+      box-shadow: inset 0 2px 0 var(--hud-hi), inset 0 -2px 0 var(--hud-lo);
+      box-sizing:border-box;
+    }
+    .wrap::before{
+      content:""; position:absolute; inset:8px; pointer-events:none;
+      border:2px solid rgba(20,40,18,0.85);
+      box-shadow: inset 0 1px 0 rgba(255,255,220,0.05);
     }
 
     /* Stacking */
@@ -95,8 +110,9 @@
     /* Hints */
     #hint{
       position:absolute; left:50%; bottom:8px; transform:translateX(-50%);
-      font-size:12px; letter-spacing:.06em; opacity:.8; z-index:4; user-select:none;
-      text-shadow:0 0 6px rgba(255,0,0,.25); white-space:nowrap;
+      font-size:12px; letter-spacing:.06em; opacity:.82; z-index:4; user-select:none;
+      color:var(--ink-soft);
+      text-shadow:0 0 6px rgba(80,160,60,.25); white-space:nowrap;
       pointer-events:none;
     }
 
@@ -110,15 +126,15 @@
 
       text-decoration:none;
       appearance:none;
-      border:1px solid #b30000;
-      background:#120000;
-      color:#ffd7d7;
+      border:2px solid var(--hud-border);
+      background:#102110;
+      color:var(--ink);
       font-family:'Share Tech Mono', monospace;
       font-size:clamp(16px, 2.6vw, 22px);
       letter-spacing:.08em;
       padding:.9rem 1.4rem;
       border-radius:8px;
-      box-shadow:0 0 0 1px #2a0000 inset, 0 0 24px rgba(255,0,0,.08);
+      box-shadow:0 0 0 1px rgba(24,48,22,.7) inset, 0 0 24px rgba(126,252,107,.14);
       transition: transform .12s ease, box-shadow .12s ease, background .12s ease, color .12s ease, border-color .12s ease, opacity .25s ease;
 
       /* gated by default */
@@ -128,19 +144,20 @@
     #startBtn.ready{
       opacity:1;
       pointer-events:auto;
+      box-shadow:0 0 0 1px rgba(30,60,26,.75) inset, 0 0 36px rgba(126,252,107,.18), 0 0 0 4px rgba(32,88,20,.32);
     }
     #startBtn:hover, #startBtn:focus-visible{
       outline:none;
       transform:translateX(-50%) translateY(-1px);
-      background:#260000;
-      border-color:#ff2a2a;
-      box-shadow:0 0 0 1px #3a0000 inset, 0 0 36px rgba(255,0,0,.16);
-      color:#ffeaea;
+      background:#183118;
+      border-color:#8cf874;
+      box-shadow:0 0 0 1px rgba(46,92,40,.7) inset, 0 0 24px rgba(126,252,107,.22), 0 0 0 4px rgba(32,88,20,.32);
+      color:#f6ffda;
     }
     #startBtn:active{
       transform:translateX(-50%);
-      background:#1a0000;
-      box-shadow:0 0 0 1px #3a0000 inset, 0 0 18px rgba(255,0,0,.12);
+      background:#142914;
+      box-shadow:0 0 0 1px rgba(46,92,40,.75) inset, 0 0 18px rgba(126,252,107,.24);
     }
   </style>
 </head>
@@ -471,7 +488,7 @@
         // draw OPAQUE logo (sits near top now)
         logoCtx.save();
         logoCtx.globalCompositeOperation='source-over';
-        logoCtx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--red-core').trim() || '#b30000';
+        logoCtx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--red-core').trim() || '#79f95c';
         logoCtx.font = `${fontPx}px "Courier Prime","Share Tech Mono", monospace`;
         logoCtx.textBaseline = 'top';
         const lines = ASCII_LOGO.split('\n');
