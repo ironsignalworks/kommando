@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Fog Of War — Real-Time Caverns v0.5.1 (Sprites)</title>
+<title>Fog Of War — Real-Time Caverns v0.5.2 (Sprites)</title>
 <link rel="icon" href="/favicon.ico">
 <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
@@ -71,7 +71,7 @@
 ▒▒▒▒▒   ▒▒▒▒    ▒▒▒▒▒▒▒    ▒▒▒▒▒     ▒▒▒▒▒ ▒▒▒▒▒     ▒▒▒▒▒ ▒▒▒▒▒   ▒▒▒▒▒ ▒▒▒▒▒    ▒▒▒▒▒ ▒▒▒▒▒▒▒▒▒▒      ▒▒▒▒▒▒▒</pre>
       <div class="sep"></div>
       <div class="hud-col">
-        <div class="hud-row"><span style="font-size:18px">Fog Of War</span><span class="tag" id="build">v0.5.1</span></div>
+        <div class="hud-row"><span style="font-size:18px">Fog Of War</span><span class="tag" id="build">v0.5.2</span></div>
         <div class="hud-row level-row"><span>Level:</span><span id="levelName">&#8212;</span></div>
       </div>
       <div class="sep"></div>
@@ -103,11 +103,9 @@ const BULLET_COOLDOWN = 140;
 const BULLET_SPEED    = 0.55;
 const SANITY_DRAIN_PS = 3;
 
-// earthy brownish tile colors (kept for tint helpers / legacy)
+// earthy brownish tile colors (legacy tints)
 const COLOR_WALL = '#8a4b3a';
-const COLOR_WALL_DARK = '#51302a';
 const COLOR_FLOOR_LIT = '#3c2a28';
-const COLOR_FLOOR_SEEN = '#2a1f1d';
 
 const Glyphs = {
   floor:   { ch:' ', fg:COLOR_FLOOR_LIT, bg:null },
@@ -131,13 +129,13 @@ const PALETTES = {
 
 const LEVELS = [
   { id:1, key:'reality',   name:'WELCOME HOME',           enemies:1,  diamonds:1,  mines:0 },
-  { id:2, key:'jungle',    name:'FLASHBACK',              enemies:1,  diamonds:1, mines:0,
+  { id:2, key:'jungle',    name:'FLASHBACK',              enemies:1,  diamonds:1,  mines:0,
     complexity:{ rooms:14, connectors:5, carveSeeds:3, carveStepMul:1.6 } },
-  { id:3, key:'paranoia',  name:'TARGETS OF OPPORTUNITY', enemies:1,  diamonds:1, mines:0,
+  { id:3, key:'paranoia',  name:'TARGETS OF OPPORTUNITY', enemies:1,  diamonds:1,  mines:0,
     complexity:{ rooms:12, connectors:4, carveSeeds:2, carveStepMul:1.25 } },
-  { id:4, key:'psychosis', name:'THE RAID',               enemies:1, diamonds:1, mines:1,
+  { id:4, key:'psychosis', name:'THE RAID',               enemies:1,  diamonds:1,  mines:1,
     complexity:{ rooms:13, connectors:5, carveSeeds:3, carveStepMul:1.35 } },
-  { id:5, key:'collapse',  name:'EXTRACTION',             enemies:1, diamonds:1, mines:1,
+  { id:5, key:'collapse',  name:'EXTRACTION',             enemies:1,  diamonds:1,  mines:1,
     complexity:{ rooms:15, connectors:6, carveSeeds:3, carveStepMul:1.5 } },
 ];
 
@@ -354,7 +352,7 @@ function mirrorHalf(g, halfW, h, paintHalf){
 function buildSprites(){
   const u = 12;
 
-  // Player — commando
+  // Player — commando (distressed fatigues)
   SPR.commando = makeSprite(10, u, (g)=>{
     const skin = '#f1c07a', cloth='#203a63', cloth2='#2b4b7a', strap='#5a3a1f', visor='#8ad8ff', dk='#0e1c33';
     px(g,4,0, dk); px(g,5,0, dk);
@@ -384,7 +382,7 @@ function buildSprites(){
     px(g,2,6, base); px(g,7,6, base);
   });
 
-  // Ghost — paranoia
+  // Ghost — paranoia (translucent echo)
   SPR.ghost = makeSprite(10, u, (g)=>{
     const mist='#c53a53', glow='#ff6e8b', edge='#5b0f1e';
     mirrorHalf(g,5,u,()=>{
@@ -451,11 +449,25 @@ function buildSprites(){
     }
     g.globalAlpha = 1;
   });
+
+  // Mine — cute yellow charge puck
+  SPR.mine = makeSprite(10, 10, (g)=>{
+    // body
+    g.fillStyle = '#2a2210'; g.fillRect(3,7,4,1);
+    g.fillStyle = '#3f3516'; g.fillRect(2,6,6,1);
+    g.fillStyle = '#5d4f1e'; g.fillRect(1,5,8,1);
+    // core
+    g.fillStyle = '#ffe26a'; g.fillRect(3,3,4,2);
+    g.fillStyle = '#fff3a3'; g.fillRect(4,3,2,1);
+    // rim
+    g.fillStyle = '#d9bd4c'; g.fillRect(2,2,6,1);
+    g.fillRect(2,5,1,1); g.fillRect(7,5,1,1);
+  });
 }
 function drawSprite(ctx, name, x, y, w=TILE_W, h=TILE_H){
   const img = SPR[name];
   if(!img) return;
-  const aspect = img.width ? (img.height / img.width) : 1;
+  const aspect = img.height / img.width;
   const targetH = Math.min(h, w * aspect);
   const oy = (h - targetH) * 0.5;
   ctx.imageSmoothingEnabled = false;
@@ -501,7 +513,6 @@ class Game{
     this.enemyInterval = ENEMY_COOLDOWN;
 
     // L3 paranoia
-    this.paranoiaSweepT = 0;
     this.phantoms = [];
 
     // L4 psychosis
@@ -589,7 +600,6 @@ class Game{
       }
     }
     this.diamondGoal = this.diamonds.size;
-
 
     // Bullets & seen
     this.bullets=[]; this.seen=new Set(); this.sanity=100; this.ammo=24; this.lastDir=[1,0];
@@ -920,7 +930,7 @@ class Game{
       jitterApplied=true;
     }
 
-    // ambient backdrops (unchanged)
+    // ambient backdrops
     if(spec.key==='reality'){
       const lampCount = Math.max(2, Math.floor(WORLD_W / 260));
       const lampColor = pal.lampColor || 'rgba(145,170,210,0.32)';
@@ -959,50 +969,69 @@ class Game{
 
     const vis=computeFOV(this.map,this.player.x,this.player.y,12); for(const i of vis) this.seen.add(i);
 
-    // === SPRITE-BASED TILE RENDER ===
+    // === SPRITE TILES + MAZE EDGE SHADING ===
     for(let y=0;y<this.map.h;y++){
       for(let x=0;x<this.map.w;x++){
         const i=y*this.map.w+x, seen=this.seen.has(i), visible=vis.has(i), isWall=this.map.isWall(x,y);
+        const sx = x*TILE_W, sy = y*TILE_H;
         if(isWall){
           const wallAlpha = visible ? 1 : (seen ? 0.65 : 0.35);
           ctx.globalAlpha = wallAlpha;
-          drawSprite(ctx, 'wall', x*TILE_W, y*TILE_H, TILE_W, TILE_W);
-          if(pal.wallTint){
-            ctx.fillStyle = pal.wallTint;
-            ctx.fillRect(x*TILE_W, y*TILE_H, TILE_W, TILE_H);
+          drawSprite(ctx, 'wall', sx, sy, TILE_W, TILE_W);
+          // palette tint
+          if(pal.wallTint){ ctx.fillStyle = pal.wallTint; ctx.fillRect(sx, sy, TILE_W, TILE_H); }
+          // edge highlights for depth
+          // top rim light if floor above
+          if(y>0 && !this.map.isWall(x,y-1)){
+            ctx.globalAlpha = 0.10; ctx.fillStyle = 'rgba(255,240,200,1)'; ctx.fillRect(sx, sy, TILE_W, 2);
+          }
+          // left side shadow if floor left
+          if(x>0 && !this.map.isWall(x-1,y)){
+            ctx.globalAlpha = 0.20; ctx.fillStyle = 'rgba(0,0,0,1)'; ctx.fillRect(sx, sy, 2, TILE_H);
+          }
+          // bottom contact shadow if floor below
+          if(y<this.map.h-1 && !this.map.isWall(x,y+1)){
+            ctx.globalAlpha = 0.24; ctx.fillStyle = 'rgba(0,0,0,1)'; ctx.fillRect(sx, sy+TILE_H-2, TILE_W, 2);
           }
           ctx.globalAlpha = 1;
         } else {
           const explored = visible || seen;
           const floorAlpha = explored ? 1 : 0.35;
           ctx.globalAlpha = floorAlpha;
-          drawSprite(ctx, 'floor', x*TILE_W, y*TILE_H, TILE_W, TILE_W);
-          if(pal.floorTint){
-            ctx.fillStyle = pal.floorTint;
-            ctx.fillRect(x*TILE_W, y*TILE_H, TILE_W, TILE_H);
-          }
+          drawSprite(ctx, 'floor', sx, sy, TILE_W, TILE_W);
+          if(pal.floorTint){ ctx.fillStyle = pal.floorTint; ctx.fillRect(sx, sy, TILE_W, TILE_H); }
           ctx.globalAlpha = 1;
 
           if(this.decor && this.decor.has(i)){
             const deco = this.decor.get(i);
             const spriteName = typeof deco === "string" ? deco : "palm";
             ctx.globalAlpha = explored ? 1 : 0.45;
-            drawSprite(ctx, spriteName, x*TILE_W, y*TILE_H, TILE_W, TILE_H);
+            drawSprite(ctx, spriteName, sx, sy, TILE_W, TILE_H);
             ctx.globalAlpha = 1;
           }
           if(this.diamonds.has(i)){
             const diamondAlpha = explored ? 1 : 0.65;
             ctx.globalAlpha = diamondAlpha;
-            drawSprite(ctx, 'diamond', x*TILE_W + TILE_W*0.1, y*TILE_H + TILE_H*0.1, TILE_W*0.8, TILE_H*0.8);
+            drawSprite(ctx, 'diamond', sx + TILE_W*0.1, sy + TILE_H*0.1, TILE_W*0.8, TILE_H*0.8);
             ctx.globalAlpha = 1;
           }
           if(this.mines.has(i) && visible){
-            this.drawCharExact(Glyphs.mine.ch, x*TILE_W, y*TILE_H, Glyphs.mine.fg);
+            // pulsing glow
+            const pulse = (Math.sin((this.levelTicks||0)/200 + i*0.13)*0.5+0.5);
+            ctx.globalAlpha = 0.18 + 0.15*pulse;
+            const gx = sx + TILE_W*0.5, gy = sy + TILE_H*0.6, r = 7 + 2*pulse;
+            const grad = ctx.createRadialGradient(gx,gy,1,gx,gy,r);
+            grad.addColorStop(0,'rgba(255,227,90,0.45)');
+            grad.addColorStop(1,'rgba(255,227,90,0)');
+            ctx.fillStyle = grad; ctx.fillRect(sx-8,sy-8,TILE_W+16,TILE_H+16);
+            ctx.globalAlpha = 1;
+            // sprite
+            drawSprite(ctx, 'mine', sx + TILE_W*0.2, sy + TILE_H*0.25, TILE_W*0.6, TILE_H*0.6);
           }
-          const exitAlpha = explored ? 1 : 0.6;
           if(this.exit===i){
+            const exitAlpha = explored ? 1 : 0.6;
             ctx.globalAlpha = exitAlpha;
-            drawSprite(ctx, 'exit', x*TILE_W + TILE_W*0.1, y*TILE_H + TILE_H*0.1, TILE_W*0.8, TILE_H*0.8);
+            drawSprite(ctx, 'exit', sx + TILE_W*0.1, sy + TILE_H*0.1, TILE_W*0.8, TILE_H*0.8);
             ctx.globalAlpha = 1;
           }
         }
@@ -1043,15 +1072,20 @@ class Game{
       ctx.globalAlpha=1; this.gunfireT--;
     }
 
-    // paranoia phantoms (keep as '@' echoes for now)
+    // paranoia phantoms — now as translucent ghost sprites
     if(spec.key==='paranoia' && this.sanity<65 && this.phantoms.length){
-      ctx.globalAlpha = 0.85;
       for(const ph of this.phantoms){
-        const on = (Math.sin((performance.now()/180)+ph.phase) > 0.35);
+        const on = (Math.sin((performance.now()/180)+ph.phase) > 0.15);
         if(!on) continue;
-        this.drawCharExact('@', ph.x*TILE_W, ph.y*TILE_H, '#cc2244');
+        const i = ph.y*this.map.w+ph.x;
+        if(!vis.has(i)) continue; // keep them in FOV for fairness
+        // slight jitter parallax
+        const jx = Math.sin((this.levelTicks||0)/260 + ph.phase)*0.4;
+        const jy = Math.cos((this.levelTicks||0)/320 + ph.phase)*0.3;
+        ctx.globalAlpha = 0.45;
+        drawSprite(ctx, 'ghost', (ph.x+jx)*TILE_W, (ph.y+jy)*TILE_H, TILE_W, TILE_H);
+        ctx.globalAlpha = 1;
       }
-      ctx.globalAlpha = 1;
     }
 
     // hits/glitches
@@ -1139,7 +1173,7 @@ class Game{
       const staticCount = Math.max(160, Math.floor(WORLD_W*WORLD_H/1400));
       const baseShift = ((this.levelTicks||0) * 0.12) + (this.staticSeed || 0);
       for(let i=0;i<staticCount;i++){
-        ctx.fillStyle = (Math.random()<0.5) ? (pal.static || '#d4d4d4') : 'rgba(20,20,20,0.45)';
+        ctx.fillStyle = (Math.random()<0.5) ? (PALETTES.collapse.static || '#d4d4d4') : 'rgba(20,20,20,0.45)';
         const px=(Math.random()*WORLD_W + baseShift) % WORLD_W;
         const py=(Math.random()*WORLD_H + baseShift*0.7) % WORLD_H;
         const pw = (Math.random()<0.2)?2:1;
