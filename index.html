@@ -93,6 +93,8 @@ const TILE_W = 16;
 const TILE_H = 18;
 const GRID_W = 60;
 const GRID_H = 30;
+const WORLD_W = GRID_W * TILE_W;
+const WORLD_H = GRID_H * TILE_H;
 
 // realtime timing (ms)
 const MOVE_COOLDOWN   = 70;
@@ -120,11 +122,11 @@ const Glyphs = {
 };
 
 const PALETTES = {
-  reality:   { name:'Reality',   tint:[0.65,0.78,1.25], bg:'#0c131d', lampColor:'rgba(150,180,230,0.32)', rainColor:'rgba(135,165,215,0.6)' },
-  jungle:    { name:'Flashback', tint:[0.75,1.18,0.75], bg:'#041407', fogColor:'rgba(14,60,28,0.55)', flash:'#ffd94d', tracer:'#ffe871' },
-  paranoia:  { name:'Paranoia',  tint:[1.25,0.60,0.60], bg:'#1b0404', bleed:'#5c0909', flash:'#7a0000' },
-  psychosis: { name:'Psychosis', tint:[1.0,1.0,1.0], bg:'#050505', flash:'#aa0000', mode:'bw' },
-  collapse:  { name:'Collapse',  tint:[1.10,1.05,1.15], bg:'#040404', flash:'#b8a37a', static:'#d0d0d0' },
+  reality:   { name:'Reality',   tint:[0.70,0.85,1.30], bg:'#0c131d', lampColor:'rgba(150,180,230,0.32)', rainColor:'rgba(135,165,215,0.6)', floorTint:'rgba(36,58,88,0.32)', wallTint:'rgba(90,110,140,0.28)' },
+  jungle:    { name:'Flashback', tint:[0.65,1.22,0.70], bg:'#041407', fogColor:'rgba(14,60,28,0.55)', flash:'#ffd94d', tracer:'#ffe871', floorTint:'rgba(26,82,44,0.35)', wallTint:'rgba(52,120,68,0.32)' },
+  paranoia:  { name:'Paranoia',  tint:[1.35,0.52,0.52], bg:'#1b0404', bleed:'#5c0909', flash:'#7a0000', floorTint:'rgba(110,26,26,0.32)', wallTint:'rgba(140,30,30,0.38)' },
+  psychosis: { name:'Psychosis', tint:[1.0,1.0,1.0], bg:'#050505', flash:'#aa0000', mode:'bw', floorTint:'rgba(210,210,210,0.18)', wallTint:'rgba(80,80,80,0.20)' },
+  collapse:  { name:'Collapse',  tint:[1.12,1.04,1.10], bg:'#040404', flash:'#b8a37a', static:'#d0d0d0', floorTint:'rgba(56,54,60,0.28)', wallTint:'rgba(92,82,70,0.30)' },
 };
 
 const LEVELS = [
@@ -567,10 +569,27 @@ class Game{
       if(this.diamonds.has(idx)) continue;
       this.diamonds.add(idx); d++;
     }
-    this.diamondGoal = this.diamonds.size;
 
     // Exit
     let ex=px,ey=py,tries=0; do{ ex=2+rand(this.map.w-4); ey=2+rand(this.map.h-4); tries++; } while((Math.abs(ex-px)+Math.abs(ey-py)<24 || this.map.isWall(ex,ey)) && tries<2000); this.exit=ey*this.map.w+ex;
+
+    if(this.diamonds.size===0 && diamondTarget>0){
+      const fallbackOffsets=[[2,0],[-2,0],[0,2],[0,-2],[3,0],[0,3],[-3,0],[0,-3],[4,0],[0,4]];
+      for(const [fx,fy] of fallbackOffsets){
+        const nx=clamp(px+fx,1,this.map.w-2);
+        const ny=clamp(py+fy,1,this.map.h-2);
+        const idx=ny*this.map.w+nx;
+        if(this.map.isWall(nx,ny) || idx===this.exit) continue;
+        this.diamonds.add(idx);
+        break;
+      }
+      if(this.diamonds.size===0){
+        const spawnIdx=py*this.map.w+px;
+        if(spawnIdx!==this.exit) this.diamonds.add(spawnIdx);
+      }
+    }
+    this.diamondGoal = this.diamonds.size;
+
 
     // Bullets & seen
     this.bullets=[]; this.seen=new Set(); this.sanity=100; this.ammo=24; this.lastDir=[1,0];
@@ -596,17 +615,17 @@ class Game{
 
     // Decor
     this.decor = new globalThis.Map();
-    const placeDecor = (count, glyph)=>{
+    const placeDecor = (count, sprite)=>{
       let placed=0, attempts=0, maxAttempts=totalCells*3;
       while(placed<count && attempts<maxAttempts){
         attempts++;
         const x=2+rand(this.map.w-4), y=2+rand(this.map.h-4);
         const i=y*this.map.w+x;
         if(this.map.isWall(x,y)||i===this.exit||this.diamonds.has(i)|| this.mines.has(i) || (x===this.player.x&&y===this.player.y) || this.entities.some(e=>e.x===x&&e.y===y) || this.decor.has(i)) continue;
-        this.decor.set(i,glyph); placed++;
+        this.decor.set(i,sprite); placed++;
       }
     };
-    const levelKey=spec.key; if(levelKey==='jungle'||levelKey==='paranoia'){ placeDecor(16,{ch:Glyphs.palm.ch,fg:Glyphs.palm.fg}); }
+    const levelKey=spec.key; if(levelKey==='jungle'||levelKey==='paranoia'){ placeDecor(16,'palm'); }
 
     // Level specifics
     this.enemyInterval = (spec.key==='jungle') ? Math.max(80, ENEMY_COOLDOWN * 0.75) : ENEMY_COOLDOWN;
@@ -755,6 +774,8 @@ class Game{
 
   updateEnemies(){
     const spec=LEVELS[this.levelIndex];
+    const playerIdx = this.player.y*this.map.w+this.player.x;
+    const canopySafe = this.decor && this.decor.has(playerIdx);
 
     for(const e of this.entities){
       if(e.type!=='enemy') continue;
@@ -796,7 +817,7 @@ class Game{
       stepOnce();
       if(spec.key==='psychosis' && e.fast) stepOnce();
 
-      if(e.x===this.player.x&&e.y===this.player.y){ this.onPlayerHit(); }
+      if(e.x===this.player.x&&e.y===this.player.y && !canopySafe){ this.onPlayerHit(); }
     }
 
     if(spec.key==='jungle' && Math.random()<0.05 && this.entities.filter(e=>e.type==='enemy').length < spec.enemies+4){
@@ -876,37 +897,52 @@ class Game{
     if(this.state==='melting'){ return; }
     if(this.state==='gameover'){ this.renderGameOver(); return; }
 
+    const viewW = this.canvas.width;
+    const viewH = this.canvas.height;
+    const scale = Math.min(viewW / WORLD_W, viewH / WORLD_H);
+    const offsetX = Math.floor((viewW - WORLD_W * scale) / 2);
+    const offsetY = Math.floor((viewH - WORLD_H * scale) / 2);
+
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.imageSmoothingEnabled = false;
+    ctx.fillStyle = pal.bg;
+    ctx.fillRect(0,0,viewW,viewH);
+
+    ctx.save();
+    ctx.translate(offsetX, offsetY);
+    ctx.scale(scale, scale);
+
+    let jitterApplied=false;
     // quake jitter (collapse)
     if(spec.key==='collapse' && Math.random()<0.35){
       ctx.save();
       ctx.translate((Math.random()-0.5)*2, (Math.random()-0.5)*2);
+      jitterApplied=true;
     }
-
-    ctx.imageSmoothingEnabled=false; ctx.fillStyle=pal.bg; ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
 
     // ambient backdrops (unchanged)
     if(spec.key==='reality'){
-      const lampCount = Math.max(2, Math.floor(this.canvas.width / 260));
+      const lampCount = Math.max(2, Math.floor(WORLD_W / 260));
       const lampColor = pal.lampColor || 'rgba(145,170,210,0.32)';
       ctx.globalAlpha = 0.18;
       for(let i=0;i<lampCount;i++){
-        const lx = (i + 0.5) * this.canvas.width / lampCount;
-        const lampW = Math.max(28, this.canvas.width / lampCount * 0.42);
-        const grad = ctx.createLinearGradient(lx, 0, lx, this.canvas.height);
+        const lx = (i + 0.5) * WORLD_W / lampCount;
+        const lampW = Math.max(28, WORLD_W / lampCount * 0.42);
+        const grad = ctx.createLinearGradient(lx, 0, lx, WORLD_H);
         grad.addColorStop(0, 'rgba(60,80,120,0.02)');
         grad.addColorStop(0.25, lampColor);
         grad.addColorStop(0.75, 'rgba(70,90,130,0.08)');
         grad.addColorStop(1, 'rgba(30,40,60,0.02)');
         ctx.fillStyle = grad;
-        ctx.fillRect(lx - lampW/2, 0, lampW, this.canvas.height);
+        ctx.fillRect(lx - lampW/2, 0, lampW, WORLD_H);
       }
       ctx.globalAlpha = 1;
     } else if(spec.key==='jungle'){
       ctx.globalAlpha = 0.10;
       const hazePatches = 5;
       for(let i=0;i<hazePatches;i++){
-        const px = Math.random()*this.canvas.width;
-        const py = Math.random()*this.canvas.height;
+        const px = Math.random()*WORLD_W;
+        const py = Math.random()*WORLD_H;
         const radius = 90 + Math.random()*140;
         const grad = ctx.createRadialGradient(px, py, radius*0.15, px, py, radius);
         grad.addColorStop(0, pal.fogColor || 'rgba(18,70,32,0.45)');
@@ -928,25 +964,46 @@ class Game{
       for(let x=0;x<this.map.w;x++){
         const i=y*this.map.w+x, seen=this.seen.has(i), visible=vis.has(i), isWall=this.map.isWall(x,y);
         if(isWall){
-          ctx.globalAlpha = visible ? 1 : 0.6;
+          const wallAlpha = visible ? 1 : (seen ? 0.65 : 0.35);
+          ctx.globalAlpha = wallAlpha;
           drawSprite(ctx, 'wall', x*TILE_W, y*TILE_H, TILE_W, TILE_W);
+          if(pal.wallTint){
+            ctx.fillStyle = pal.wallTint;
+            ctx.fillRect(x*TILE_W, y*TILE_H, TILE_W, TILE_H);
+          }
           ctx.globalAlpha = 1;
         } else {
+          const explored = visible || seen;
+          const floorAlpha = explored ? 1 : 0.35;
+          ctx.globalAlpha = floorAlpha;
           drawSprite(ctx, 'floor', x*TILE_W, y*TILE_H, TILE_W, TILE_W);
-          if(!visible && !seen) continue;
+          if(pal.floorTint){
+            ctx.fillStyle = pal.floorTint;
+            ctx.fillRect(x*TILE_W, y*TILE_H, TILE_W, TILE_H);
+          }
+          ctx.globalAlpha = 1;
 
           if(this.decor && this.decor.has(i)){
-            drawSprite(ctx, 'palm', x*TILE_W, y*TILE_H, TILE_W, TILE_H);
+            const deco = this.decor.get(i);
+            const spriteName = typeof deco === "string" ? deco : "palm";
+            ctx.globalAlpha = explored ? 1 : 0.45;
+            drawSprite(ctx, spriteName, x*TILE_W, y*TILE_H, TILE_W, TILE_H);
+            ctx.globalAlpha = 1;
           }
           if(this.diamonds.has(i)){
+            const diamondAlpha = explored ? 1 : 0.65;
+            ctx.globalAlpha = diamondAlpha;
             drawSprite(ctx, 'diamond', x*TILE_W + TILE_W*0.1, y*TILE_H + TILE_H*0.1, TILE_W*0.8, TILE_H*0.8);
+            ctx.globalAlpha = 1;
           }
-          if(this.mines.has(i)){
-            // keep glyph for now; easy to swap later
+          if(this.mines.has(i) && visible){
             this.drawCharExact(Glyphs.mine.ch, x*TILE_W, y*TILE_H, Glyphs.mine.fg);
           }
+          const exitAlpha = explored ? 1 : 0.6;
           if(this.exit===i){
+            ctx.globalAlpha = exitAlpha;
             drawSprite(ctx, 'exit', x*TILE_W + TILE_W*0.1, y*TILE_H + TILE_H*0.1, TILE_W*0.8, TILE_H*0.8);
+            ctx.globalAlpha = 1;
           }
         }
       }
@@ -980,7 +1037,7 @@ class Game{
       const n=80; ctx.globalAlpha=0.75;
       for(let k=0;k<n;k++){
         ctx.fillStyle = PALETTES.jungle.tracer || '#ffe871';
-        const px=Math.random()*this.canvas.width, py=Math.random()*this.canvas.height;
+        const px=Math.random()*WORLD_W, py=Math.random()*WORLD_H;
         ctx.fillRect(px,py,1,1);
       }
       ctx.globalAlpha=1; this.gunfireT--;
@@ -1000,19 +1057,19 @@ class Game{
     // hits/glitches
     if(this.glitchT>0){
       const n=120; ctx.globalAlpha=0.9;
-      for(let k=0;k<n;k++){ ctx.fillStyle=(Math.random()<0.5)?'#ffd400':'#ffee55'; const px=Math.random()*this.canvas.width, py=Math.random()*this.canvas.height; ctx.fillRect(px,py,1,1); }
+      for(let k=0;k<n;k++){ ctx.fillStyle=(Math.random()<0.5)?'#ffd400':'#ffee55'; const px=Math.random()*WORLD_W, py=Math.random()*WORLD_H; ctx.fillRect(px,py,1,1); }
       ctx.globalAlpha=1; this.glitchT--;
     }
     if(this.flashT>0){
       this.flashT--;
-      ctx.globalAlpha=0.10; ctx.fillStyle=this.flashColor||pal.flash||'#aa0000'; ctx.fillRect(0,0,this.canvas.width,this.canvas.height); ctx.globalAlpha=1;
+      ctx.globalAlpha=0.10; ctx.fillStyle=this.flashColor||pal.flash||'#aa0000'; ctx.fillRect(0,0,WORLD_W,WORLD_H); ctx.globalAlpha=1;
       if(this.flashT===0) this.flashColor=null;
     }
 
     if(spec.key==='jungle' && Math.random()<0.02){
       ctx.globalAlpha=0.07;
       ctx.fillStyle = PALETTES.jungle.flash || '#ffd94d';
-      ctx.fillRect(0,0,this.canvas.width,this.canvas.height);
+      ctx.fillRect(0,0,WORLD_W,WORLD_H);
       ctx.globalAlpha=1;
     }
 
@@ -1021,36 +1078,36 @@ class Game{
       ctx.strokeStyle = pal.rainColor || 'rgba(130,160,210,0.55)';
       ctx.lineWidth = 1;
       ctx.beginPath();
-      const drops = Math.max(48, Math.floor(this.canvas.width / 6));
+      const drops = Math.max(48, Math.floor(WORLD_W / 6));
       const drift = (this.levelTicks || 0) * 0.35 + (this.rainSeed || 0);
       for(let i=0;i<drops;i++){
-        const x = Math.random()*this.canvas.width;
-        const y = (Math.random()*this.canvas.height + drift + i*11) % this.canvas.height;
+        const x = Math.random()*WORLD_W;
+        const y = (Math.random()*WORLD_H + drift + i*11) % WORLD_H;
         ctx.moveTo(x, y);
         ctx.lineTo(x + 0.6, y + 8);
       }
       ctx.stroke();
       ctx.globalAlpha = 0.22;
       ctx.fillStyle = 'rgba(20,30,40,0.35)';
-      ctx.fillRect(0, this.canvas.height-6, this.canvas.width, 6);
+      ctx.fillRect(0, WORLD_H-6, WORLD_W, 6);
       ctx.globalAlpha = 1;
     }
 
     if(spec.key==='paranoia'){
       ctx.globalAlpha = 0.18;
       ctx.fillStyle = pal.bleed || '#460505';
-      ctx.fillRect(0,0,this.canvas.width,12);
-      ctx.fillRect(0,this.canvas.height-12,this.canvas.width,12);
+      ctx.fillRect(0,0,WORLD_W,12);
+      ctx.fillRect(0,WORLD_H-12,WORLD_W,12);
       ctx.globalAlpha = 0.05;
-      for(let y=0;y<this.canvas.height; y+=3){ ctx.fillStyle='#220000'; ctx.fillRect(0,y,this.canvas.width,1); }
+      for(let y=0;y<WORLD_H; y+=3){ ctx.fillStyle='#220000'; ctx.fillRect(0,y,WORLD_W,1); }
       ctx.globalAlpha = 1;
       if(this.sanity<50 && Math.random()<0.03){
-        ctx.globalAlpha = 0.06; ctx.fillStyle = '#7a0000'; ctx.fillRect(0,0,this.canvas.width,this.canvas.height); ctx.globalAlpha = 1;
+        ctx.globalAlpha = 0.06; ctx.fillStyle = '#7a0000'; ctx.fillRect(0,0,WORLD_W,WORLD_H); ctx.globalAlpha = 1;
       }
       const specks = 70; ctx.globalAlpha = 0.35;
       for(let i=0;i<specks;i++){
         ctx.fillStyle = (Math.random()<0.5)?'#441111':'#552222';
-        const px=Math.random()*this.canvas.width, py=Math.random()*this.canvas.height;
+        const px=Math.random()*WORLD_W, py=Math.random()*WORLD_H;
         ctx.fillRect(px,py,1,1);
       }
       ctx.globalAlpha = 1;
@@ -1058,42 +1115,41 @@ class Game{
 
     if(spec.key==='psychosis'){
       if(this.sanity<75 && Math.random()<0.05){
-        ctx.globalAlpha = 0.07; ctx.fillStyle = PALETTES.psychosis.flash; ctx.fillRect(0,0,this.canvas.width,this.canvas.height); ctx.globalAlpha=1;
+        ctx.globalAlpha = 0.07; ctx.fillStyle = PALETTES.psychosis.flash; ctx.fillRect(0,0,WORLD_W,WORLD_H); ctx.globalAlpha=1;
       }
       if(Math.random()<0.04){
         ctx.globalAlpha = 0.18;
-        const tearX = Math.random()*this.canvas.width;
+        const tearX = Math.random()*WORLD_W;
         ctx.fillStyle = 'rgba(160,0,0,0.55)';
-        ctx.fillRect(tearX,0,2,this.canvas.height);
+        ctx.fillRect(tearX,0,2,WORLD_H);
         ctx.globalAlpha = 1;
       }
       ctx.globalAlpha = 0.08;
       for(let i=0;i<4;i++){
-        const bx = Math.random()*this.canvas.width;
+        const bx = Math.random()*WORLD_W;
         const bw = 1 + Math.random()*2;
         ctx.fillStyle = 'rgba(240,240,240,0.35)';
-        ctx.fillRect(bx, Math.random()*this.canvas.height, bw, 1);
+        ctx.fillRect(bx, Math.random()*WORLD_H, bw, 1);
       }
       ctx.globalAlpha = 1;
     }
 
     if(spec.key==='collapse'){
       ctx.globalAlpha = 0.24;
-      const staticCount = Math.max(160, Math.floor(this.canvas.width*this.canvas.height/1400));
+      const staticCount = Math.max(160, Math.floor(WORLD_W*WORLD_H/1400));
       const baseShift = ((this.levelTicks||0) * 0.12) + (this.staticSeed || 0);
       for(let i=0;i<staticCount;i++){
         ctx.fillStyle = (Math.random()<0.5) ? (pal.static || '#d4d4d4') : 'rgba(20,20,20,0.45)';
-        const px=(Math.random()*this.canvas.width + baseShift) % this.canvas.width;
-        const py=(Math.random()*this.canvas.height + baseShift*0.7) % this.canvas.height;
+        const px=(Math.random()*WORLD_W + baseShift) % WORLD_W;
+        const py=(Math.random()*WORLD_H + baseShift*0.7) % WORLD_H;
         const pw = (Math.random()<0.2)?2:1;
         ctx.fillRect(px,py,pw,1);
       }
       ctx.globalAlpha = 1;
     }
 
-    if(spec.key==='collapse' && ctx.restore){
-      try{ ctx.restore(); }catch(_){}
-    }
+    if(jitterApplied) ctx.restore();
+    ctx.restore();
   }
 
   drawChar(ch,x,y,fg){
