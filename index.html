@@ -120,7 +120,7 @@
     <canvas id="type"></canvas>   <!-- FOG OF WAR title (under logo, also near top) -->
 
     <!-- CTA (gated, bottom) -->
-    <a id="startBtn" href="play.html" aria-label="Start Game">START GAME ▸</a>
+    <a id="startBtn" href="deployment.html" aria-label="Start Game">START GAME ▸</a>
 
     <div id="hint">SPACE — replay intro &nbsp;&nbsp;•&nbsp;&nbsp; ENTER — start (when ready)</div>
   </div>
@@ -607,7 +607,7 @@
         if(e.code==='Space'){ e.preventDefault(); start(); }
         if(e.code==='Enter' && startBtn.classList.contains('ready')){
           e.preventDefault();
-          window.location.href = 'play.html';
+          window.location.href = 'deployment.html';
         }
       });
 
