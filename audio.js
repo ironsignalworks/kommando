@@ -10,7 +10,6 @@
     startLoop() {},
     stopLoop() {},
     playIntro() {},
-      this.bufferPromises = new Map();
     playDeployment() {},
     playSanityLow() {},
     playGameOver() {},
@@ -18,6 +17,11 @@
     startBackground() {},
     stopBackground() {},
     configureFiles() {},
+    // New SFX no-ops for environments without WebAudio
+    playPickup() {},
+    playHeal() {},
+    playMine() {},
+    playSanityTick() {},
   };
 
   // File names map (override via window.KomAudioFiles before this script loads)
@@ -28,6 +32,11 @@
     sanity: 'audio/sanity_low.mp3',
     gameover: 'audio/gameover.mp3',
     victory: 'audio/victory.mp3',
+    // Optional external overrides for new SFX
+    pickup: null,
+    heal: null,
+    mine: null,
+    sanity_tick: null,
   };
 
   const fetchAudio = (typeof fetch === 'function') ? fetch : null;
@@ -261,6 +270,51 @@
     }
   }
 
+  // --- Lightweight SFX builders ---
+  function buildPickup(data, sampleRate, channelIndex){
+    const tones = [
+      { start:0.00, dur:0.10, f0:660, f1:880, amp:0.5 },
+      { start:0.11, dur:0.10, f0:990, f1:1320, amp:0.45 },
+    ];
+    tones.forEach(t=>{
+      addBlip(data, sampleRate, {
+        start:t.start, dur:t.dur, amp:t.amp,
+        freq:(r)=> t.f0 + (t.f1 - t.f0) * r,
+        envPower:1.2, harmonics:[0.15]
+      });
+    });
+  }
+
+  function buildHeal(data, sampleRate, channelIndex){
+    const tones=[
+      { start:0.00, dur:0.14, f0:420, f1:560, amp:0.42 },
+      { start:0.10, dur:0.18, f0:560, f1:700, amp:0.38 },
+    ];
+    tones.forEach(t=>{
+      addBlip(data, sampleRate, {
+        start:t.start, dur:t.dur, amp:t.amp,
+        freq:(r)=> t.f0 + (t.f1 - t.f0) * r,
+        envPower:1.3, harmonics:[0.1]
+      });
+    });
+  }
+
+  function buildMine(data, sampleRate, channelIndex){
+    // Low thump + noise burst
+    addBlip(data, sampleRate, { start:0.00, dur:0.35, freq:(r)=> 200*(1-r)+60, amp:0.7, envPower:1.2, harmonics:[0.25,0.12] });
+    for(let i=0;i<data.length;i++){
+      const t = i / sampleRate;
+      const env = Math.pow(Math.max(0, 1 - t/0.45), 1.1);
+      const noise = (pseudoRandom(i, 77 + channelIndex*3)-0.5) * 0.9 * env;
+      data[i] += noise;
+    }
+  }
+
+  function buildSanityTick(data, sampleRate, channelIndex){
+    addBlip(data, sampleRate, { start:0.00, dur:0.06, freq:880, amp:0.35, envPower:1.6, harmonics:[0.1] });
+    addBlip(data, sampleRate, { start:0.05, dur:0.05, freq:660, amp:0.28, envPower:1.5 });
+  }
+
   const SOUND_SPECS = {
     intro: { duration: 2.7, edgeFade: 0.03, target: 0.82, builder: buildIntro },
     deployment: { duration: 2.0, edgeFade: 0.02, target: 0.86, builder: buildDeployment },
@@ -268,6 +322,10 @@
     sanity: { duration: 1.8, edgeFade: 0.025, target: 0.88, builder: buildSanity },
     gameover: { duration: 3.4, edgeFade: 0.04, target: 0.85, builder: buildGameOver },
     victory: { duration: 3.2, edgeFade: 0.03, target: 0.9, builder: buildVictory },
+    pickup: { duration: 0.28, edgeFade: 0.01, target: 0.9, builder: buildPickup },
+    heal:   { duration: 0.30, edgeFade: 0.01, target: 0.9, builder: buildHeal },
+    mine:   { duration: 0.50, edgeFade: 0.02, target: 0.9, builder: buildMine },
+    sanity_tick: { duration: 0.12, edgeFade: 0.01, target: 0.9, builder: buildSanityTick },
   };
 
   class AudioManager {
@@ -592,6 +650,12 @@
       this.stopBackground();
       this.play('victory', { fadeOut: 0.6 });
     }
+
+    // ---- New SFX API ----
+    playPickup(){ this.play('pickup'); }
+    playHeal(){ this.play('heal'); }
+    playMine(){ this.play('mine', { fadeOut: 0.12 }); }
+    playSanityTick(){ this.play('sanity_tick'); }
   }
 
   window.KomAudio = new AudioManager();
