@@ -176,13 +176,13 @@ canvas{ display:block; width:100%; height:calc(100% - 0px); image-rendering:pixe
   }
   canvas{ width:100% !important; height:100% !important; }
 
-  /* HUD becomes 3 rows: meta(logo) / stats / controls */
+  /* HUD order on mobile: Sanity (stats), Level, ASCII logo */
   .hud-bottom{
     display:grid;
     grid-template-areas:
-      "meta"
       "stats"
-      "controls";
+      "meta"
+      "logo";
     grid-auto-rows:auto;
     row-gap:8px;
     column-gap:0;
@@ -191,7 +191,12 @@ canvas{ display:block; width:100%; height:calc(100% - 0px); image-rendering:pixe
   }
   .hud-col.meta{ grid-area:meta; min-width:0; }
   .hud-col.stats{ grid-area:stats; min-width:0; }
-  .hud-col.controls{ grid-area:controls; min-width:0; }
+  /* Hide movement instructions on mobile */
+  .hud-col.controls{ display:none; }
+  /* Place ASCII logo canvas at bottom */
+  .logo{ grid-area:logo; display:block !important; width:180px; height:auto; margin-right:-24px; opacity:.95; }
+  /* Hide game title/build row on mobile, keep Level row */
+  .hud-col.meta .hud-row:first-child{ display:none; }
 
   /* Mini logo visible on mobile */
   .logo{
@@ -240,7 +245,7 @@ canvas{ display:block; width:100%; height:calc(100% - 0px); image-rendering:pixe
 
 /* ===== Virtual joystick (mobile only) ===== */
 .touch-controls{
-  position:fixed; left:8px; bottom:8px;
+  position:fixed; left:8px; bottom:48px; /* raised 40px */
   display:none; z-index:30; pointer-events:none;
 }
 @media (max-width: 860px){ .touch-controls{ display:block; } }
@@ -271,7 +276,7 @@ canvas{ display:block; width:100%; height:calc(100% - 0px); image-rendering:pixe
   .touch-controls{
     left:auto !important;
     right:8px !important;
-    bottom:8px !important;
+    bottom:48px !important; /* raised 40px on mobile */
     display:block !important;
     pointer-events:none;
   }
@@ -282,6 +287,7 @@ canvas{ display:block; width:100%; height:calc(100% - 0px); image-rendering:pixe
 }
 .view { overflow:hidden; }
 canvas { display:block; width:100%; height:100%; }
+
 
 </style>
 </head>
@@ -337,6 +343,7 @@ canvas { display:block; width:100%; height:100%; }
     </div>
   </div>
 
+/* one-time audio unlock */
 <script>
 /* one-time audio unlock */
 (function(){
@@ -348,10 +355,33 @@ canvas { display:block; width:100%; height:100%; }
   ['pointerdown','mousedown','touchstart'].forEach(evt => window.addEventListener(evt, unlock, { once: true, passive: true }));
   window.addEventListener('keydown', unlock, { once: true });
 })();
-/* ==== Portrait rotation helpers ==== */
+
+/* used by render() and the joystick */
 function isPortraitMobile(){
-  // phones/tablets in portrait; tweak the width cutoff if you want
   return window.matchMedia('(max-width: 860px) and (orientation: portrait)').matches;
+}
+</script>
+
+function setKeys(nx, ny){
+  // When the render is rotated +90° (portrait), rotate input −90° back to world space.
+  // screen -> world: [wx, wy] = [-ny, nx]
+  let wx = nx, wy = ny;
+  if (isPortraitMobile()){
+    wx =  ny;
+    wy = -nx;
+  }
+
+  const want = {
+    ArrowLeft:  wx < -DEAD,
+    ArrowRight: wx >  DEAD,
+    ArrowUp:    wy < -DEAD,
+    ArrowDown:  wy >  DEAD
+  };
+
+  for(const k in want){
+    if(want[k] && !pressed[k]){ fire(k,'keydown'); pressed[k]=true; }
+    if(!want[k] &&  pressed[k]){ fire(k,'keyup');   pressed[k]=false; }
+  }
 }
 
 </script>
@@ -410,8 +440,10 @@ function isPortraitMobile(){
  **********************/
 const TILE_W = 24;   // chunkier sprites
 const TILE_H = 26;
-const GRID_W = 60;
-const GRID_H = 30;
+// Tweak grid on portrait mobile to reduce lateral margins
+const __PORTRAIT = isPortraitMobile();
+const GRID_W = __PORTRAIT ? 52 : 60;
+const GRID_H = __PORTRAIT ? 34 : 30;
 const WORLD_W = GRID_W * TILE_W;
 const WORLD_H = GRID_H * TILE_H;
 
@@ -1299,34 +1331,22 @@ class Game{
   ctx.save();
 
   if (portrait){
-    // rotate CW 90°, scale to fit, then center the world — no letterbox, no spill
-    const scale = Math.min(viewW / WORLD_H, viewH / WORLD_W);
-
-    // center of the canvas
-    ctx.translate(viewW / 2, viewH / 2);
-    // rotate the drawing space
-    ctx.rotate(Math.PI / 2);
-    // fit world into rotated viewport
-    ctx.scale(scale, scale);
-    // center world coordinates
-    ctx.translate(-WORLD_W / 2, -WORLD_H / 2);
-  } else {
-    // landscape: classic center + uniform scale
-    const scale   = Math.min(viewW / WORLD_W, viewH / WORLD_H);
-    const offsetX = Math.floor((viewW - WORLD_W * scale) / 2);
-    const offsetY = Math.floor((viewH - WORLD_H * scale) / 2);
-    ctx.translate(offsetX, offsetY);
-    ctx.scale(scale, scale);
-  }
+  // Rotate +90° and scale so the rotated WORLD height fits the canvas height (no overflow).
+  // After rotation, world size becomes (H,W) in canvas space, so lock to viewH/WORLD_W.
+  const scale = Math.min(viewH / WORLD_W, viewW / WORLD_H);
+  ctx.translate(viewW / 2, viewH / 2);   // center canvas
+  ctx.rotate(Math.PI / 2);
+  ctx.scale(scale, scale);
+  ctx.translate(-WORLD_W / 2, -WORLD_H / 2); // center world
+} else {
+  const scale   = Math.min(viewW / WORLD_W, viewH / WORLD_H);
+  const offsetX = Math.floor((viewW - WORLD_W * scale) / 2);
+  const offsetY = Math.floor((viewH - WORLD_H * scale) / 2);
+  ctx.translate(offsetX, offsetY);
+  ctx.scale(scale, scale);
+}
 
   // ===== draw everything from here in world space (0..WORLD_W/H) =====
-  // (Everything below this point stays exactly as you have it:
-  // tiles, entities, bullets, FX, flashes, etc.)
-
-  // ... your existing drawing code ...
-
-
-
 
     // Ambient bg
     if(spec.key==='reality'){
@@ -1689,17 +1709,26 @@ window.Kommando={ setPalette(key){ const idx=LEVELS.findIndex(l=>l.key===key); i
     send(canvas, map[2], map[3], type); send(document, map[2], map[3], type); send(window, map[2], map[3], type);
   }
   function setKeys(nx, ny){
-    const want = {
-      ArrowLeft:  nx < -DEAD,
-      ArrowRight: nx >  DEAD,
-      ArrowUp:    ny < -DEAD,
-      ArrowDown:  ny >  DEAD
-    };
-    for(const k in want){
-      if(want[k] && !pressed[k]){ pressed[k]=true; emit(k,true); }
-      if(!want[k] &&  pressed[k]){ pressed[k]=false; emit(k,false); }
-    }
+  // When we render portrait, the game world is rotated +90°.
+  // Rotate the stick vector -90° to map screen -> world.
+  let wx = nx, wy = ny;
+  if (isPortraitMobile()){
+    wx =  ny;
+    wy = -nx;
   }
+
+  const want = {
+    ArrowLeft:  wx < -DEAD,
+    ArrowRight: wx >  DEAD,
+    ArrowUp:    wy < -DEAD,
+    ArrowDown:  wy >  DEAD
+  };
+
+  for(const k in want){
+    if(want[k] && !pressed[k]){ pressed[k]=true; emit(k,true); }
+    if(!want[k] &&  pressed[k]){ pressed[k]=false; emit(k,false); }
+  }
+}
   function reset(){
     nub.style.transform = 'translate(0,0)';
     setKeys(0,0); activeId = null;
