@@ -4,18 +4,21 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>KOMMANDO — Fog of War</title>
-  
+
   <!-- Fonts -->
-  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Courier+Prime:wght@400&family=Special+Elite&display=swap" rel="stylesheet" />
-  <link rel="icon" href="./favicon.ico" />
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Courier+Prime:wght@400&family=Special+Elite&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
+  <!-- Added: JetBrains Mono to keep block glyphs truly monospaced -->
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
   
+  <link rel="icon" href="./favicon.ico" />
+
   <!-- Primary SEO -->
   <meta name="title" content="KOMMANDO — Fog of War" />
   <meta name="description" content="Dive into real-time caverns where every step echoes madness. Tactical pixel warfare meets paranoia in a collapsing underground world. Welcome to the Fog of War." />
   <meta name="keywords" content="kommando, fog of war, Catastrophic Labs, pixel roguelite, tactical shooter, retro arcade, browser game, real-time caverns, paranoia, extraction" />
   <meta name="author" content="Catastrophic Labs" />
   <link rel="canonical" href="https://ironsignalworks.github.io/kommando/" />
-  
+
   <!-- Open Graph -->
   <meta property="og:title" content="KOMMANDO — Fog of War" />
   <meta property="og:description" content="Dive into real-time caverns where every step echoes madness. Tactical pixel warfare meets paranoia in a collapsing underground world. Welcome to the Fog of War." />
@@ -25,21 +28,21 @@
   <meta property="og:url" content="https://ironsignalworks.github.io/kommando/" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Catastrophic Labs" />
-  
+
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="KOMMANDO — Fog of War" />
   <meta name="twitter:description" content="Dive into real-time caverns where every step echoes madness. Tactical pixel warfare meets paranoia in a collapsing underground world. Welcome to the Fog of War." />
   <meta name="twitter:image" content="https://ironsignalworks.github.io/kommando/card.jpg" />
   <meta name="twitter:image:alt" content="KOMMANDO — Fog of War preview image" />
-  <!-- If you have an official handle, add it: -->
   <!-- <meta name="twitter:creator" content="@CatastrophicLabs" /> -->
-  
+
+  <script defer src="audio.js"></script>
+
   <!-- Nice-to-haves -->
   <meta name="theme-color" content="#0a1208" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
-  
 
   <style>
     :root{
@@ -64,7 +67,7 @@
       --gutter: 24;
 
       --fade-alpha: 0.010;  /* build-phase decay inside mask */
-      --red-core:   #ff0000;/* final solid logo (hovering green) */
+      --red-core:   #ff0000;/* final solid logo */
       --ink-a:      rgba(255, 0, 0, 0.7);
       --ink-b:      rgba(60, 11, 11, 0.58);
       --ink-tail:   rgba(12, 3, 3, 0.55);
@@ -120,7 +123,7 @@
     #startBtn{
       position:absolute;
       left:50%;
-      bottom:10%;                        /* << bottom portion of the screen */
+      bottom:10%;
       transform:translateX(-50%);
       z-index:5;
 
@@ -136,6 +139,22 @@
       border-radius:8px;
       box-shadow:0 0 0 1px rgba(24,48,22,.7) inset, 0 0 24px rgba(126,252,107,.14);
       transition: transform .12s ease, box-shadow .12s ease, background .12s ease, color .12s ease, border-color .12s ease, opacity .25s ease;
+
+    .logo{
+      font-family:'JetBrains Mono', monospace !important;
+      font-size:6px;
+      line-height:6px;
+      letter-spacing:0;
+      font-variant-ligatures:none;
+      white-space:pre;
+      display:block;
+      color:var(--ink);
+      opacity:.95;
+      flex:0 0 auto;
+      max-width:none;
+      overflow:hidden;
+    }
+    .logo { transform: scale(0.85); transform-origin:left top; }
 
       /* gated by default */
       opacity:0;
@@ -164,9 +183,9 @@
 <body>
   <div class="wrap" id="wrap">
     <canvas id="ansi"></canvas>   <!-- skull (under) -->
-    <canvas id="logo"></canvas>   <!-- opaque red logo (now positioned near top) -->
+    <canvas id="logo"></canvas>   <!-- opaque red logo -->
     <canvas id="paint"></canvas>  <!-- drips / neon -->
-    <canvas id="type"></canvas>   <!-- FOG OF WAR title (under logo, also near top) -->
+    <canvas id="type"></canvas>   <!-- FOG OF WAR title -->
 
     <!-- CTA (gated, bottom) -->
     <a id="startBtn" href="deployment.html" aria-label="Start Game">START GAME ▸</a>
@@ -176,18 +195,29 @@
 
   <!-- ASCII mask -->
   <script type="text/plain" id="ascii-src">
-
-
-
-    
-    █████   ████    ███████    ██████   ██████ ██████   ██████   █████████   ██████   █████ ██████████      ███████
-    ▒▒███   ███▒   ███▒▒▒▒▒███ ▒▒██████ ██████ ▒▒██████ ██████   ███▒▒▒▒▒███ ▒▒██████ ▒▒███ ▒▒███▒▒▒▒███   ███▒▒▒▒▒███
-     ▒███  ███    ███     ▒▒███ ▒███▒█████▒███  ▒███▒█████▒███  ▒███    ▒███  ▒███▒███ ▒███  ▒███   ▒▒███ ███     ▒▒███
-     ▒███████    ▒███      ▒███ ▒███▒▒███ ▒███  ▒███▒▒███ ▒███  ▒███████████  ▒███▒▒███▒███  ▒███    ▒███▒███      ▒███
-     ▒███▒▒███   ▒███      ▒███ ▒███ ▒▒▒  ▒███  ▒███ ▒▒▒  ▒███  ▒███▒▒▒▒▒███  ▒███ ▒▒██████  ▒███    ▒███▒███      ▒███
-     ▒███ ▒▒███  ▒▒███     ███  ▒███      ▒███  ▒███      ▒███  ▒███    ▒███  ▒███  ▒▒█████  ▒███    ███ ▒▒███     ███
-     █████ ▒▒████ ▒▒▒███████▒   █████     █████ █████     █████ █████   █████ █████  ▒▒█████ ██████████   ▒▒▒███████▒
-    ▒▒▒▒▒   ▒▒▒▒    ▒▒▒▒▒▒▒    ▒▒▒▒▒     ▒▒▒▒▒ ▒▒▒▒▒     ▒▒▒▒▒ ▒▒▒▒▒   ▒▒▒▒▒ ▒▒▒▒▒    ▒▒▒▒▒ ▒▒▒▒▒▒▒▒▒▒      ▒▒▒▒▒▒▒
+  
+  
+  
+      
+      █████   ████    ███████    ██████   ██████ ██████   ██████   █████████   ██████   █████ ██████████      ███████
+      ▒▒███   ███▒   ███▒▒▒▒▒███ ▒▒██████ ██████ ▒▒██████ ██████   ███▒▒▒▒▒███ ▒▒██████ ▒▒███ ▒▒███▒▒▒▒███   ███▒▒▒▒▒███
+       ▒███  ███    ███     ▒▒███ ▒███▒█████▒███  ▒███▒█████▒███  ▒███    ▒███  ▒███▒███ ▒███  ▒███   ▒▒███ ███     ▒▒███
+       ▒███████    ▒███      ▒███ ▒███▒▒███ ▒███  ▒███▒▒███ ▒███  ▒███████████  ▒███▒▒███▒███  ▒███    ▒███▒███      ▒███
+       ▒███▒▒███   ▒███      ▒███ ▒███ ▒▒▒  ▒███  ▒███ ▒▒▒  ▒███  ▒███▒▒▒▒▒███  ▒███ ▒▒██████  ▒███    ▒███▒███      ▒███
+       ▒███ ▒▒███  ▒▒███     ███  ▒███      ▒███  ▒███      ▒███  ▒███    ▒███  ▒███  ▒▒█████  ▒███    ███ ▒▒███     ███
+       █████ ▒▒████ ▒▒▒███████▒   █████     █████ █████     █████ █████   █████ █████  ▒▒█████ ██████████   ▒▒▒███████▒
+      ▒▒▒▒▒   ▒▒▒▒    ▒▒▒▒▒▒▒    ▒▒▒▒▒     ▒▒▒▒▒ ▒▒▒▒▒     ▒▒▒▒▒ ▒▒▒▒▒   ▒▒▒▒▒ ▒▒▒▒▒    ▒▒▒▒▒ ▒▒▒▒▒▒▒▒▒▒      ▒▒▒▒▒▒▒
+  </script>
+  <script>
+    (function(){
+      const unlock = () => {
+        if (window.KomAudio && typeof window.KomAudio.resume === 'function') {
+          window.KomAudio.resume(true);
+        }
+      };
+      ['pointerdown','mousedown','touchstart'].forEach(evt => window.addEventListener(evt, unlock, { once: true, passive: true }));
+      window.addEventListener('keydown', unlock, { once: true });
+    })();
   </script>
 
   <!-- Skull block (raw; no ANSI escapes) -->
@@ -246,9 +276,6 @@
                                                                                     █░▒█                            
                                                                                     ▒░█                             
                                                                                    █▒█                              
-                                                                                                                    
-                                                                                                                    
-                                                                                                                    
   </script>
 
   <script>
@@ -264,7 +291,20 @@
       const ASCII_LOGO = document.getElementById('ascii-src').textContent.replace(/\r/g,'');
       const SKULL_RAW  = document.getElementById('skull-src').textContent;
 
-      if (document.fonts && document.fonts.ready) { try { await document.fonts.ready; } catch(e){} }
+      // Ensure fonts are really ready before measuring
+      if (document.fonts && document.fonts.ready) {
+        try { await document.fonts.ready; } catch(e){}
+      }
+      try {
+        await Promise.all([
+          document.fonts.load(`400 16px "JetBrains Mono"`),
+          document.fonts.load(`400 16px "Courier Prime"`),
+          document.fonts.load(`400 16px "Share Tech Mono"`),
+          document.fonts.load(`400 16px "Special Elite"`)
+        ]);
+      } catch(_) {}
+
+      const ASCII_STACK = `"JetBrains Mono","Courier Prime","Share Tech Mono",monospace`;
 
       let w=0, h=0;
       let maskData=null, mW=0, mH=0, logoBox=null, chW=0, chH=0, rows=0, cols=0, offX=0, offY=0, fontPx=0;
@@ -276,6 +316,7 @@
 
       // phases: 0 BUILD, 1 FADE_PAINT, 2 NEON, 3 DONE
       let phase = 0;
+      let introSoundPlayed = false;
 
       // skull text layout
       let skullLines=[], skullGeom=null, skullStart=0;
@@ -310,7 +351,7 @@
 
         fontPx = Math.floor(Math.min(
           w / Math.max(8, (cols + 2)),
-          h / Math.max(8, (rows + 4))            // slightly smaller to leave room above/below
+          h / Math.max(8, (rows + 4))
         ));
         fontPx = Math.max(12, Math.min(fontPx, 40));
 
@@ -322,26 +363,27 @@
         mctx.setTransform(DPR,0,0,DPR,0,0);
         mctx.clearRect(0,0,w,h);
         mctx.fillStyle = '#fff';
-        mctx.font = `${fontPx}px "Courier Prime","Share Tech Mono", monospace`;
+        mctx.font = `${fontPx}px ${ASCII_STACK}`;
         mctx.textBaseline='top';
 
-        chW = mctx.measureText('M').width;
+        // Measure using the actual block char to match glyph advance
+        chW = mctx.measureText('█').width || mctx.measureText('M').width;
         chH = fontPx * 1.2;
         const blockW = chW * cols;
         const blockH = chH * rows;
 
-        offX = Math.floor((w - blockW)/2);
-          offY = Math.floor(h * 0.06);              // raise KOMMANDO ASCII closer to the top
+        offX = Math.round((w - blockW)/2);
+        offY = Math.round(h * 0.06);  // raise KOMMANDO ASCII closer to the top
 
-        for (let r=0;r<rows;r++){
-          const line = lines[r];
-          if (line && line.trim().length) mctx.fillText(line, offX, offY + r*chH);
+        for (let rI=0;rI<rows;rI++){
+          const line = lines[rI];
+          if (line && line.trim().length) mctx.fillText(line, Math.round(offX), Math.round(offY + rI*chH));
         }
         maskData = mctx.getImageData(0,0,mW,mH).data;
 
         logoBox = {x: offX, y: offY, w: blockW, h: blockH};
 
-        // --- Skull placement (kept right; adapts to new top) ---
+        // --- Skull placement (right side; adapts to new top) ---
         skullLines = SKULL_RAW.replace(/\r/g,'').split('\n');
         const sRows = skullLines.length;
         const sCols = skullLines.reduce((m,l)=>Math.max(m,l.length),0);
@@ -355,9 +397,9 @@
           rightAvailH / Math.max(6,(sRows+0.5))
         ));
         sFontPx = Math.max(8, Math.min(sFontPx, 28));
-        ansiCtx.font = `${sFontPx}px "Courier Prime","Share Tech Mono", monospace`;
+        ansiCtx.font = `${sFontPx}px ${ASCII_STACK}`;
         ansiCtx.textBaseline = 'top';
-        const sChW = ansiCtx.measureText('M').width;
+        const sChW = ansiCtx.measureText('█').width || ansiCtx.measureText('M').width;
         const sChH = sFontPx * 1.2;
 
         const sTotalW = sChW * sCols;
@@ -365,9 +407,9 @@
 
         let left = offX + logoBox.w + gutter;
         left = Math.min(left, w - sTotalW - rightPad);
-          const top  = Math.max(12, Math.floor((h - sTotalH)/2) - Math.floor(h*0.08)); // nudge skull ASCII upward
+        const top  = Math.max(12, Math.floor((h - sTotalH)/2) - Math.floor(h*0.08)); // nudge skull ASCII upward
 
-        skullGeom = { left, top, cols:sCols, rows:sRows, chW:sChW, chH:sChH, fontPx:sFontPx };
+        skullGeom = { left: Math.round(left), top: Math.round(top), cols:sCols, rows:sRows, chW:sChW, chH:sChH, fontPx:sFontPx };
       }
 
       /* --------- helpers --------- */
@@ -464,20 +506,22 @@
       function drawSkullFrame(ts){
         if(!skullGeom) return;
         const {left, top, cols, rows, chW, chH, fontPx} = skullGeom;
-        const t = Math.max(0, Math.min(1, (ts - skullStart)/ (parseInt(css().getPropertyValue('--ansi-ms'))||2600)));
+        const t = Math.max(0, Math.min(1, (ts - skullStart)/ (parseInt(css().getPropertyValue('--ansi-ms'))||1600)));
         const revealCols = Math.ceil(cols * t);
 
         // draw skull progressively (no fade)
         ansiCtx.save();
         ansiCtx.globalCompositeOperation = 'source-over';
         ansiCtx.clearRect(0,0,w,h);
-        ansiCtx.font = `${fontPx}px "Courier Prime","Share Tech Mono", monospace`;
+        ansiCtx.font = `${fontPx}px ${ASCII_STACK}`;
         ansiCtx.textBaseline = 'top';
         ansiCtx.fillStyle = '#eaeaea';
         for (let r=0;r<rows;r++){
           const slice = (skullLines[r]||'').slice(0,revealCols);
           if (slice.trim().length){
-            ansiCtx.fillText(slice, left + (cols - slice.length)*chW, top + r*chH);
+            // Right-align each row while revealing left->right
+            const padCols = cols - slice.length;
+            ansiCtx.fillText(slice, Math.round(left + padCols*chW), Math.round(top + r*chH));
           }
         }
         ansiCtx.restore();
@@ -485,16 +529,16 @@
 
       function finalSolidLogo(){
         if(finalized) return; finalized = true;
-        // draw OPAQUE logo (sits near top now)
+        // draw OPAQUE logo (sits near top)
         logoCtx.save();
         logoCtx.globalCompositeOperation='source-over';
-        logoCtx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--red-core').trim() || '#79f95c';
-        logoCtx.font = `${fontPx}px "Courier Prime","Share Tech Mono", monospace`;
+        logoCtx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--red-core').trim() || '#ff0000';
+        logoCtx.font = `${fontPx}px ${ASCII_STACK}`;
         logoCtx.textBaseline = 'top';
         const lines = ASCII_LOGO.split('\n');
-        for (let r=0;r<rows;r++){
-          const line = lines[r];
-          if (line && line.trim().length) logoCtx.fillText(line, offX, offY + r*chH);
+        for (let rI=0;rI<rows;rI++){
+          const line = lines[rI];
+          if (line && line.trim().length) logoCtx.fillText(line, Math.round(offX), Math.round(offY + rI*chH));
         }
         logoCtx.restore();
       }
@@ -503,7 +547,7 @@
       function startTypewriter(){
         const maxW = Math.floor(logoBox.w*0.95);
         const ts = Math.min(64, Math.max(18, Math.floor(maxW/(TYPE_TEXT.length*0.62))));
-        const y  = Math.min(h*0.52, logoBox.y + logoBox.h + Math.max(20, Math.floor(logoBox.h*0.08))); // allow FOG OF WAR to sit lower
+        const y  = Math.min(h*0.52, logoBox.y + logoBox.h + Math.max(20, Math.floor(logoBox.h*0.08)));
         const cx = Math.floor(logoBox.x + logoBox.w/2);
 
         let idx=0, typing=true, caretOn=true;
@@ -634,9 +678,14 @@
 
         const now = performance.now();
         skullStart = now;
-        spawnUntil = now + (parseInt(css().getPropertyValue('--spawn-ms'))||5200);
-        stopAt     = now + (parseInt(css().getPropertyValue('--sim-ms'))  ||9800);
-        neonUntil  = stopAt + (parseInt(css().getPropertyValue('--neon-ms'))||2800);
+        spawnUntil = now + (parseInt(css().getPropertyValue('--spawn-ms'))||2200);
+        stopAt     = now + (parseInt(css().getPropertyValue('--sim-ms'))  ||1800);
+        neonUntil  = stopAt + (parseInt(css().getPropertyValue('--neon-ms'))||1800);
+
+        if(!introSoundPlayed && window.KomAudio){
+          introSoundPlayed = true;
+          window.KomAudio.playIntro();
+        }
 
         setTimeout(()=> startTypewriter(), Math.max(80, (spawnUntil-now) + 150));
         rafId = requestAnimationFrame(tick);
@@ -656,6 +705,7 @@
         if(e.code==='Space'){ e.preventDefault(); start(); }
         if(e.code==='Enter' && startBtn.classList.contains('ready')){
           e.preventDefault();
+          if(window.KomAudio && window.KomAudio.resume){ window.KomAudio.resume(true); }
           window.location.href = 'deployment.html';
         }
       });
@@ -665,6 +715,7 @@
         if(!startBtn.classList.contains('ready')){
           e.preventDefault(); return;
         }
+        if(window.KomAudio && window.KomAudio.resume){ window.KomAudio.resume(true); }
         e.stopPropagation(); // allow href to navigate
       });
 

@@ -38,6 +38,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
 
+  <script defer src="audio.js"></script>
+
 <style>
   :root{
     --bg:#051307;
@@ -294,6 +296,7 @@ The floor collapses into white noise.
   }
   requestAnimationFrame(raf);
   addEventListener('resize', () => { fit(); start = performance.now(); requestAnimationFrame(raf); }, {passive:true});
+  if(window.KomAudio){ window.KomAudio.playVictory(); }
 })();
 </script>
 </body>

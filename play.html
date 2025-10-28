@@ -1,51 +1,50 @@
-﻿<!doctype html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Fog Of War — Real-Time Caverns v0.7.0 (Chunky Sprites + Seeds)</title>
+<title>Kommando - Fog Of War. Real-Time Caverns v0.7.0 (Chunky Sprites + Seeds)</title>
 <link rel="icon" href="/favicon.ico">
-<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=VT323&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=VT323&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
 
-  <!-- Primary SEO -->
-  <meta name="title" content="KOMMANDO — Fog of War" />
-  <meta name="description" content="Dive into real-time caverns where every step echoes madness. Tactical pixel warfare meets paranoia in a collapsing underground world. Welcome to the Fog of War." />
-  <meta name="keywords" content="kommando, fog of war, Catastrophic Labs, pixel roguelite, tactical shooter, retro arcade, browser game, real-time caverns, paranoia, extraction" />
-  <meta name="author" content="Catastrophic Labs" />
-  <link rel="canonical" href="https://ironsignalworks.github.io/kommando/" />
-  
-  <!-- Open Graph -->
-  <meta property="og:title" content="KOMMANDO — Fog of War" />
-  <meta property="og:description" content="Dive into real-time caverns where every step echoes madness. Tactical pixel warfare meets paranoia in a collapsing underground world. Welcome to the Fog of War." />
-  <meta property="og:image" content="https://ironsignalworks.github.io/kommando/card.jpg" />
-  <meta property="og:image:type" content="image/jpeg" />
-  <meta property="og:image:alt" content="KOMMANDO — Fog of War preview image" />
-  <meta property="og:url" content="https://ironsignalworks.github.io/kommando/" />
-  <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="Catastrophic Labs" />
-  
-  <!-- Twitter -->
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="KOMMANDO — Fog of War" />
-  <meta name="twitter:description" content="Dive into real-time caverns where every step echoes madness. Tactical pixel warfare meets paranoia in a collapsing underground world. Welcome to the Fog of War." />
-  <meta name="twitter:image" content="https://ironsignalworks.github.io/kommando/card.jpg" />
-  <meta name="twitter:image:alt" content="KOMMANDO — Fog of War preview image" />
-  <!-- If you have an official handle, add it: -->
-  <!-- <meta name="twitter:creator" content="@CatastrophicLabs" /> -->
-  
-  <!-- Nice-to-haves -->
-  <meta name="theme-color" content="#0a1208" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="mobile-web-app-capable" content="yes" />
-  
+<!-- Primary SEO -->
+<meta name="title" content="KOMMANDO — Fog of War" />
+<meta name="description" content="Dive into real-time caverns where every step echoes madness. Tactical pixel warfare meets paranoia in a collapsing underground world. Welcome to the Fog of War." />
+<meta name="keywords" content="kommando, fog of war, Catastrophic Labs, pixel roguelite, tactical shooter, retro arcade, browser game, real-time caverns, paranoia, extraction" />
+<meta name="author" content="Catastrophic Labs" />
+<link rel="canonical" href="https://ironsignalworks.github.io/kommando/" />
+
+<!-- Open Graph -->
+<meta property="og:title" content="KOMMANDO — Fog of War" />
+<meta property="og:description" content="Dive into real-time caverns where every step echoes madness. Tactical pixel warfare meets paranoia in a collapsing underground world. Welcome to the Fog of War." />
+<meta property="og:image" content="https://ironsignalworks.github.io/kommando/card.jpg" />
+<meta property="og:image:type" content="image/jpeg" />
+<meta property="og:image:alt" content="KOMMANDO — Fog of War preview image" />
+<meta property="og:url" content="https://ironsignalworks.github.io/kommando/" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Catastrophic Labs" />
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="KOMMANDO — Fog of War" />
+<meta name="twitter:description" content="Dive into real-time caverns where every step echoes madness. Tactical pixel warfare meets paranoia in a collapsing underground world. Welcome to the Fog of War." />
+<meta name="twitter:image" content="https://ironsignalworks.github.io/kommando/card.jpg" />
+<meta name="twitter:image:alt" content="KOMMANDO — Fog of War preview image" />
+
+<meta name="theme-color" content="#0a1208" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+
+<script defer src="audio.js"></script>
+
 <style>
-  /* === Global dark-green + yellow theme with thick borders === */
+/* === Global dark-green + yellow theme with thick borders === */
 :root{
-  --bg:#051307;            /* page background: deep green-black */
-  --ink:#d1d725;           /* primary text: yellow */
-  --hud:#0c1707;           /* panel background */
-  --hud2:#081106;          /* inner chips/badges */
-  --hudBorder:#1d2c19;     /* thick panel border */
+  --bg:#051307;
+  --ink:#d1d725;
+  --hud:#0c1707;
+  --hud2:#081106;
+  --hudBorder:#1d2c19;
   --hudHi:rgba(255,255,200,.05);
   --hudLo:rgba(0,0,0,.45);
   --inkSoft:rgba(209,215,37,.8);
@@ -58,7 +57,7 @@ body{
   overflow:hidden;
 }
 
-/* App gutters kept; give the whole frame a subtle inner bevel */
+/* App gutters kept; subtle inner bevel */
 .app{
   display:grid; grid-template-rows: 1fr min(10vh, 110px);
   height:100vh; width:100vw; padding:8px; gap:8px;
@@ -74,7 +73,7 @@ body{
 /* View: thick border + dark-green shell */
 .view{
   position:relative; width:min(100%, 960px); height:100%;
-  background:#071309;         /* dark green instead of pure black */
+  background:#071309;
   border:4px solid var(--hudBorder);
   border-radius:0;
   overflow:hidden; margin:0 auto; box-sizing:border-box; padding-bottom:0;
@@ -84,12 +83,12 @@ body{
   box-shadow: inset 0 2px 0 var(--hudHi), inset 0 -2px 0 var(--hudLo);
 }
 
-/* Canvas remains pixel-sharp */
+/* Canvas pixel-sharp */
 canvas{ display:block; width:100%; height:calc(100% - 0px); image-rendering:pixelated; box-sizing:border-box }
 
-/* HUD panel: thick border + same shell */
+/* HUD panel */
 .hud-bottom{
-  display:flex; align-items:center; gap:12px;
+  display:flex; align-items:center; gap:10px;
   padding:3px 12px; background:var(--hud);
   border:4px solid var(--hudBorder); border-radius:0;
   width:min(100%, 960px); margin:0 auto; box-sizing:border-box;
@@ -101,46 +100,48 @@ canvas{ display:block; width:100%; height:calc(100% - 0px); image-rendering:pixe
   box-shadow: inset 0 2px 0 var(--hudHi), inset 0 -2px 0 var(--hudLo);
 }
 
-/* Columns and rows */
+/* Columns & rows */
 .hud-col{ display:flex; flex-direction:column; justify-content:center; gap:3px; min-width:0; }
-.hud-col.meta   { flex:1 1 8%; min-width:180px; }
-.hud-col.stats  { flex:1 1 22%; min-width:300px; }
-.hud-col.controls{flex:0 1 260px; min-width:220px; justify-content:center; }
-
+.hud-col.meta    { flex:1 1 8%;  min-width:180px; }
+.hud-col.stats   { flex:1 1 22%; min-width:300px; }
+.hud-col.controls{ flex:0 1 240px; min-width:200px; }
 .hud-row{ display:flex; align-items:center; gap:8px; white-space:nowrap; min-width:0; flex-wrap:nowrap; }
 
-/* ASCII logo: same color, no wrap */
+/* ASCII logo */
 .logo{
-  font-family:'VT323', monospace !important;
-  font-size:3px; line-height:4px; white-space:pre; display:block; color:var(--ink);
-  opacity:.95; margin:0 0px 0 0; flex:0 0 200px;
-  max-width:200px; overflow:hidden; text-overflow:ellipsis;
+  display:block;
+  width:300px;
+  height:26px;
+  flex:0 0 auto;
+  max-width:none;
+  image-rendering:pixelated;
+  opacity:.95;
+  margin-right: clamp(8px, -3vw, 0px); /* eat transparent padding on right */
+  pointer-events:none;
 }
 
-/* Separators: thicker + yellow */
-.sep{ flex:0 0 2px; width:2px; align-self:stretch; background:var(--ink); margin:0 0%; opacity:.85 }
+/* Separators */
+.sep{ flex:0 0 2px; width:2px; align-self:stretch; background:var(--ink); margin:0; opacity:.85; }
 
 /* Title + level clamp */
 #levelName{
   display:inline-block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  max-width: clamp(160px, 40vw, 420px); line-height:1.1; font-size:15px; color:var(--inkSoft);
+  max-width: clamp(180px, 46vw, 460px); line-height:1.1; font-size:15px; color:var(--inkSoft);
 }
 
-/* Pixel badges (tags) — thicker borders */
+/* Tags / kbd chips */
 .tag{
   padding:2px 7px; border:2px solid var(--hudBorder); border-radius:0;
   background:var(--hud2); box-shadow: inset 0 1px 0 var(--hudHi);
   font-size:14px; color:var(--ink);
 }
-
-/* Keyboard chips — same treatment */
 .kbd{
   background:var(--hud2); border:2px solid var(--hudBorder); padding:2px 7px;
   border-radius:0; font-size:14px; color:var(--ink);
   box-shadow: inset 0 1px 0 var(--hudHi);
 }
 
-/* Meter: thick border, retro stripes, yellow text around it already set */
+/* Meter */
 .meter{
   flex:1 1 260px; min-width:190px; max-width:420px; height:14px;
   background:#0a140c; border:2px solid var(--hudBorder); border-radius:0;
@@ -150,91 +151,258 @@ canvas{ display:block; width:100%; height:calc(100% - 0px); image-rendering:pixe
   display:block; height:100%;
   background:repeating-linear-gradient(90deg, #ffd84d 0 10px, #ffb84d 10px 20px);
 }
-.meter::after{
-  content:""; position:absolute; inset:1px; pointer-events:none;
-  background:repeating-linear-gradient(0deg, rgba(0,0,0,.12) 0 2px, transparent 2px 4px);
-  opacity:.45;
-}
 
-/* Make all text yellow by default inside HUD (keeps special colors if set inline) */
+/* All text yellow inside HUD */
 .hud-bottom, .hud-bottom *{ color:var(--ink); }
 
-/* Responsive tweaks keep the same style */
+/* ===== Tablet down ===== */
 @media (max-width: 980px){
-  .logo{ flex-basis:160px; max-width:160px; }
-  .hud-col.controls{ flex-basis:220px; min-width:200px; }
+  .logo{ flex:0 0 auto; max-width:none; }
+  .hud-col.controls{ flex:0 1 240px; min-width:200px; }
 }
+
+/* ===== Mobile: portrait-first + full HUD ===== */
 @media (max-width: 860px){
-  .logo{ display:none; }
-  .hud-bottom{ flex-wrap:wrap; row-gap:6px; column-gap:10px; }
+  .app{
+    grid-template-rows: auto auto;   /* view then hud */
+    align-content:start;
+    height:100dvh; padding:6px; gap:6px;
+  }
+  .view{
+    width:100%;
+    height:68dvh;                     /* portrait playfield height */
+    max-height:calc(100dvh - 170px);  /* leave room for HUD */
+    aspect-ratio:auto;
+  }
+  canvas{ width:100% !important; height:100% !important; }
+
+  /* HUD becomes 3 rows: meta(logo) / stats / controls */
+  .hud-bottom{
+    display:grid;
+    grid-template-areas:
+      "meta"
+      "stats"
+      "controls";
+    grid-auto-rows:auto;
+    row-gap:8px;
+    column-gap:0;
+    width:100%;
+    padding:8px 10px;
+  }
+  .hud-col.meta{ grid-area:meta; min-width:0; }
+  .hud-col.stats{ grid-area:stats; min-width:0; }
+  .hud-col.controls{ grid-area:controls; min-width:0; }
+
+  /* Mini logo visible on mobile */
+  .logo{
+    display:block !important;
+    width:180px; height:auto;
+    margin-right:-24px;
+    opacity:.95;
+  }
+
+  /* Middle row tries to keep one line; wraps meter if tight */
+  .hud-col.stats .hud-row{
+    flex-wrap:wrap; gap:8px; width:100%;
+  }
+  .hud-col.stats .hud-row .meter{
+    flex:1 1 280px; min-width:220px; max-width:100%; height:16px;
+  }
+
+  /* Bottom controls row can wrap */
+  .hud-col.controls .hud-row{
+    flex-wrap:wrap; gap:8px; width:100%;
+  }
+
   .sep{ display:none; }
-  .hud-col.meta{ order:1; flex:1 1 60%; min-width:240px; }
-  .hud-col.stats{ order:2; flex:1 1 100%; min-width:260px; }
-  .hud-col.controls{ order:3; flex:1 1 100%; justify-content:flex-end; }
   #levelName{ max-width:100%; }
 }
+
+/* ===== Small phones ===== */
 @media (max-width: 520px){
+  .hud-bottom{ font-size:14px; }
   .hud-row{ gap:6px; }
-  .meter{ min-width:150px; height:12px; }
-  .kbd,.tag{ font-size:12px; padding:1px 6px; border-width:2px; }
+  .meter{ min-width:100%; height:16px; }
+  .kbd,.tag{ font-size:12px; padding:6px 8px; border-width:2px; }
+  .kbd, .tag{ min-height:36px; display:inline-flex; align-items:center; }
 }
 
-/* Optional: unify default focus with yellow outline (keyboard-friendly) */
-:focus-visible{
-  outline:2px solid var(--ink);
-  outline-offset:2px;
-}
-/* ——— Only HUD + world frames; remove the outer app frame ——— */
-.app::before{ content:none !important; }             /* kill global outline */
+/* Focus */
+:focus-visible{ outline:2px solid var(--ink); outline-offset:2px; }
 
-/* World frame stays; inside is just the canvas */
+/* World frame only */
+.app::before{ content:none !important; }
 .view{
-  border:4px solid var(--hudBorder) !important;      /* keep single world frame */
-  background:transparent !important;                 /* no extra shell color */
+  border:4px solid var(--hudBorder) !important;
+  background:transparent !important;
   padding-bottom:0 !important;
 }
 
-/* Canvas background: pure black for the playfield */
-canvas{
-  background:#000 !important;
+/* ===== Virtual joystick (mobile only) ===== */
+.touch-controls{
+  position:fixed; left:8px; bottom:8px;
+  display:none; z-index:30; pointer-events:none;
 }
+@media (max-width: 860px){ .touch-controls{ display:block; } }
 
-/* HUD keeps its single frame (no change needed), but
-   if you want to remove the subtle inner bevel too: */
-/* .hud-bottom::before{ box-shadow:none !important; } */
+.stick{
+  position:relative;
+  width:120px; height:120px;
+  border:4px solid var(--hudBorder);
+  background:color-mix(in srgb, var(--hud) 85%, transparent);
+  box-shadow: inset 0 2px 0 var(--hudHi), inset 0 -2px 0 var(--hudLo);
+  border-radius:50%;
+  pointer-events:auto; touch-action:none;
+}
+.stick .nub{
+  position:absolute; left:50%; top:50%;
+  width:56px; height:56px; margin:-28px 0 0 -28px;
+  border:4px solid var(--hudBorder);
+  background:var(--hud2);
+  box-shadow: inset 0 2px 0 var(--hudHi);
+  border-radius:50%;
+}
+@media (max-width:520px){
+  .stick{ width:104px; height:104px; }
+  .stick .nub{ width:48px; height:48px; margin:-24px 0 0 -24px; }
+}
+/* Right-side joystick on mobile */
+@media (max-width: 860px){
+  .touch-controls{
+    left:auto !important;
+    right:8px !important;
+    bottom:8px !important;
+    display:block !important;
+    pointer-events:none;
+  }
+  .touch-controls .stick{
+    margin-left:auto;          /* push to right edge inside the container */
+    pointer-events:auto;
+  }
+}
+.view { overflow:hidden; }
+canvas { display:block; width:100%; height:100%; }
 
 </style>
 </head>
 <body>
   <div class="app">
+    <!-- World -->
     <div class="view">
       <canvas id="screen" width="960" height="576"></canvas>
     </div>
+
+    <!-- HUD (separate from touch-controls so it shows on desktop) -->
     <div class="hud-bottom">
-      <pre class="logo">█████   ████    ███████    ██████   ██████ ██████   ██████   █████████   ██████   █████ ██████████      ███████
+      <canvas class="logo" id="hudLogo"></canvas>
+      <div class="sep"></div>
+
+      <div class="hud-col meta">
+        <div class="hud-row">
+          <span style="font-size:18px">Fog Of War</span>
+          <span class="tag" id="build">v0.7.0</span>
+        </div>
+        <div class="hud-row level-row"><span>Level:</span><span id="levelName">&#8212;</span></div>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="hud-col stats">
+        <div class="hud-row">
+          <span>Sanity</span>
+          <div class="meter"><i id="sanityBar" style="width:100%"></i></div>
+          <span id="sanityPct">100%</span>
+        </div>
+        <div class="hud-row">
+          <span>Fragments</span><span id="diamonds">0/0</span>
+          <span style="opacity:.6">|</span>
+          <span>Exit</span><span id="exitState">Locked</span>
+          <span style="opacity:.6">|</span>
+          <span>Seeds</span><span id="seedsCount">0</span>
+        </div>
+      </div>
+
+      <div class="sep"></div>
+
+      <div class="hud-col controls">
+        <div class="hud-row"><span>Move</span><span class="kbd">WASD</span><span>/</span><span>Arrows</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Touch joystick lives OUTSIDE HUD and is hidden on desktop -->
+  <div class="touch-controls" aria-hidden="true">
+    <div class="stick" id="stick">
+      <div class="nub" id="stickNub"></div>
+    </div>
+  </div>
+
+<script>
+/* one-time audio unlock */
+(function(){
+  const unlock = () => {
+    if (window.KomAudio && typeof window.KomAudio.resume === 'function') {
+      window.KomAudio.resume(true);
+    }
+  };
+  ['pointerdown','mousedown','touchstart'].forEach(evt => window.addEventListener(evt, unlock, { once: true, passive: true }));
+  window.addEventListener('keydown', unlock, { once: true });
+})();
+/* ==== Portrait rotation helpers ==== */
+function isPortraitMobile(){
+  // phones/tablets in portrait; tweak the width cutoff if you want
+  return window.matchMedia('(max-width: 860px) and (orientation: portrait)').matches;
+}
+
+</script>
+
+<script>
+/* HUD ASCII logo renderer */
+(function(){
+  const HUD_ASCII = `
+█████   ████    ███████    ██████   ██████ ██████   ██████   █████████   ██████   █████ ██████████      ███████
 ▒▒███   ███▒   ███▒▒▒▒▒███ ▒▒██████ ██████ ▒▒██████ ██████   ███▒▒▒▒▒███ ▒▒██████ ▒▒███ ▒▒███▒▒▒▒███   ███▒▒▒▒▒███
  ▒███  ███    ███     ▒▒███ ▒███▒█████▒███  ▒███▒█████▒███  ▒███    ▒███  ▒███▒███ ▒███  ▒███   ▒▒███ ███     ▒▒███
  ▒███████    ▒███      ▒███ ▒███▒▒███ ▒███  ▒███▒▒███ ▒███  ▒███████████  ▒███▒▒███▒███  ▒███    ▒███▒███      ▒███
  ▒███▒▒███   ▒███      ▒███ ▒███ ▒▒▒  ▒███  ▒███ ▒▒▒  ▒███  ▒███▒▒▒▒▒███  ▒███ ▒▒██████  ▒███    ▒███▒███      ▒███
  ▒███ ▒▒███  ▒▒███     ███  ▒███      ▒███  ▒███      ▒███  ▒███    ▒███  ▒███  ▒▒█████  ▒███    ███ ▒▒███     ███
  █████ ▒▒████ ▒▒▒███████▒   █████     █████ █████     █████ █████   █████ █████  ▒▒█████ ██████████   ▒▒▒███████▒
-▒▒▒▒▒   ▒▒▒▒    ▒▒▒▒▒▒▒    ▒▒▒▒▒     ▒▒▒▒▒ ▒▒▒▒▒     ▒▒▒▒▒ ▒▒▒▒▒   ▒▒▒▒▒ ▒▒▒▒▒    ▒▒▒▒▒ ▒▒▒▒▒▒▒▒▒▒      ▒▒▒▒▒▒▒</pre>
-      <div class="sep"></div>
-      <div class="hud-col meta">
-        <div class="hud-row"><span style="font-size:18px">Fog Of War</span><span class="tag" id="build">v0.7.0</span></div>
-        <div class="hud-row level-row"><span>Level:</span><span id="levelName">&#8212;</span></div>
-      </div>
-      <div class="sep"></div>
-      <div class="hud-col stats">
-        <div class="hud-row"><span>Sanity</span><div class="meter"><i id="sanityBar" style="width:100%"></i></div><span id="sanityPct">100%</span></div>
-        <div class="hud-row"><span>Fragments</span><span id="diamonds">0/0</span><span style="opacity:.6">|</span><span>Exit</span><span id="exitState">Locked</span><span style="opacity:.6">|</span><span>Seeds</span><span id="seedsCount">×0</span></div>
-      </div>
-      <div class="sep"></div>
-      <div class="hud-col">
-        <div class="hud-row"><span>Move</span><span class="kbd">WASD</span><span>/</span><span>Arrows</span></div>
-      </div>
-    </div>
-  </div>
+▒▒▒▒▒   ▒▒▒▒    ▒▒▒▒▒▒▒    ▒▒▒▒▒     ▒▒▒▒▒ ▒▒▒▒▒     ▒▒▒▒▒ ▒▒▒▒▒   ▒▒▒▒▒ ▒▒▒▒▒    ▒▒▒▒▒ ▒▒▒▒▒▒▒▒▒▒      ▒▒▒▒▒▒▒
+`;
+  const padding = 2;
+  const px = 3;
+  function renderHudLogo(){
+    const canvas = document.getElementById('hudLogo');
+    if(!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const lines = HUD_ASCII.split('\n');
+    const rows = lines.length;
+    const cols = Math.max(...lines.map(l => l.length));
+    const font = `${px}px "JetBrains Mono", monospace`;
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.font = font;
+    const charWidth = Math.ceil(ctx.measureText('█').width || px);
+    const lineHeight = Math.ceil(px * 1.1);
+    const width = charWidth * cols + padding * 2;
+    const height = lineHeight * rows + padding * 2;
+    const DPR = Math.max(1, window.devicePixelRatio || 1);
+    canvas.width = Math.ceil(width * DPR);
+    canvas.height = Math.ceil(height * DPR);
+    canvas.style.width = width + 'px';
+    canvas.style.height = height + 'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+    ctx.font = font;
+    ctx.textBaseline = 'top';
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim() || '#d1d725';
+    ctx.clearRect(0,0,width,height);
+    for(let r=0;r<rows;r++){
+      ctx.fillText(lines[r], padding, padding + r*lineHeight);
+    }
+  }
+  window.addEventListener('resize', renderHudLogo, {passive:true});
+  renderHudLogo();
+})();
+</script>
 
 <script>
 /**********************
@@ -253,7 +421,7 @@ const BULLET_COOLDOWN = 140;
 const BULLET_SPEED    = 0.55;
 const SANITY_DRAIN_PS = 3;
 
-const Glyphs = { mine: { ch:'×', fg:'#ffd94d' } };
+const Glyphs = { mine: { ch:'✚', fg:'#ffd94d' } };
 
 const PALETTES = {
   reality:   { name:'Reality',   tint:[0.70,0.85,1.15], bg:'#0c131d', lampColor:'rgba(150,180,230,0.32)', rainColor:'rgba(135,165,215,0.6)', floorTint:'rgba(36,58,88,0.28)', wallTint:'rgba(90,110,140,0.22)' },
@@ -736,6 +904,7 @@ class Game{
     this.extractionCountdown = null;
     this.sanityMul = 1.0;
     this.levelTicks = 0;
+    this.sanityWarned = false;
     this.rainSeed = Math.random()*1000;
     this.staticSeed = Math.random()*1000;
     this.state='play';
@@ -772,7 +941,7 @@ class Game{
     this.ctx.font = `${TILE_H}px 'VT323', monospace`;
     this.ctx.textBaseline = 'top';
   }
-
+  
   resetLevel(){
     const spec=LEVELS[this.levelIndex];
     this.levelTicks = 0;
@@ -833,6 +1002,7 @@ class Game{
 
     // Bullets & seen
     this.bullets=[]; this.seen=new Set(); this.sanity=100; this.ammo=24; this.lastDir=[1,0];
+    this.sanityWarned = false;
 
     // Mines
     this.mines = new Set();
@@ -915,6 +1085,7 @@ class Game{
     document.getElementById('levelName').title = spec.name;
     this.updateHUD();
     this.state='play'; this.melt=null;
+    if(window.KomAudio){ window.KomAudio.startBackground(); }
   }
 
   pickNewPatrol(e){ let tx,ty; do{ tx=rand(this.map.w); ty=rand(this.map.h); } while(this.map.isWall(tx,ty)); e.tx=tx; e.ty=ty; }
@@ -1108,19 +1279,54 @@ class Game{
   }
 
   render(){
-    const ctx=this.ctx, spec=LEVELS[this.levelIndex], pal=PALETTES[spec.key];
-    if(this.state==='melting'){ return; }
-    if(this.state==='gameover'){ this.renderGameOver(); return; }
+  const ctx = this.ctx;
+  const spec = LEVELS[this.levelIndex];
+  const pal  = PALETTES[spec.key];
 
-    const viewW = this.canvas.width, viewH = this.canvas.height;
-    const scale = Math.min(viewW / WORLD_W, viewH / WORLD_H);
+  if (this.state === 'melting'){ return; }
+  if (this.state === 'gameover'){ this.renderGameOver(); return; }
+
+  const viewW = this.canvas.width;
+  const viewH = this.canvas.height;
+  const portrait = isPortraitMobile();
+
+  // reset and paint bg
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.imageSmoothingEnabled = false;
+  ctx.fillStyle = pal.bg;
+  ctx.fillRect(0,0,viewW,viewH);
+
+  ctx.save();
+
+  if (portrait){
+    // rotate CW 90°, scale to fit, then center the world — no letterbox, no spill
+    const scale = Math.min(viewW / WORLD_H, viewH / WORLD_W);
+
+    // center of the canvas
+    ctx.translate(viewW / 2, viewH / 2);
+    // rotate the drawing space
+    ctx.rotate(Math.PI / 2);
+    // fit world into rotated viewport
+    ctx.scale(scale, scale);
+    // center world coordinates
+    ctx.translate(-WORLD_W / 2, -WORLD_H / 2);
+  } else {
+    // landscape: classic center + uniform scale
+    const scale   = Math.min(viewW / WORLD_W, viewH / WORLD_H);
     const offsetX = Math.floor((viewW - WORLD_W * scale) / 2);
     const offsetY = Math.floor((viewH - WORLD_H * scale) / 2);
+    ctx.translate(offsetX, offsetY);
+    ctx.scale(scale, scale);
+  }
 
-    ctx.setTransform(1,0,0,1,0,0);
-    ctx.imageSmoothingEnabled = false;
-    ctx.fillStyle = pal.bg; ctx.fillRect(0,0,viewW,viewH);
-    ctx.save(); ctx.translate(offsetX, offsetY); ctx.scale(scale, scale);
+  // ===== draw everything from here in world space (0..WORLD_W/H) =====
+  // (Everything below this point stays exactly as you have it:
+  // tiles, entities, bullets, FX, flashes, etc.)
+
+  // ... your existing drawing code ...
+
+
+
 
     // Ambient bg
     if(spec.key==='reality'){
@@ -1310,6 +1516,7 @@ class Game{
   }
 
   startMelt(){
+    if(window.KomAudio && this.state!=='melting' && this.state!=='gameover'){ window.KomAudio.playGameOver(); }
     const w=this.canvas.width, h=this.canvas.height;
     const off=document.createElement('canvas'); off.width=w; off.height=h; const octx=off.getContext('2d');
     octx.drawImage(this.canvas,0,0);
@@ -1328,7 +1535,7 @@ class Game{
       ctx.drawImage(m.off, sx, 0, m.colW, h, dx, dy, m.colW, h);
     }
     ctx.globalAlpha=0.15; ctx.fillStyle='#000'; ctx.fillRect(0,0,w,h); ctx.globalAlpha=1;
-    const avg = m.offs.reduce((a,c)=>a+c,0)/m.cols; if(avg>h*1.1){ this.state='gameover'; }
+    const avg = m.offs.reduce((a,c)=>a+c,0)/m.cols; if(avg>h*1.1){ this.state='gameover'; this.melt=null; }
   }
 
   renderGameOver(){
@@ -1362,7 +1569,7 @@ class Game{
     const diamondCollected = Math.max(0, diamondTotal - this.diamonds.size);
     document.getElementById('diamonds').textContent = `${diamondCollected}/${diamondTotal}`;
     document.getElementById('exitState').textContent=this.diamonds.size===0? 'Unlocked' : 'Locked';
-    document.getElementById('seedsCount').textContent = `×${this.seeds.size}`;
+    document.getElementById('seedsCount').textContent = `✚${this.seeds.size}`;
   }
 
   loop(ts){
@@ -1372,6 +1579,15 @@ class Game{
 
     this.sanity=clamp(this.sanity-(SANITY_DRAIN_PS*this.sanityMul*dt/1000),0,100);
     if(this.sanity<=0){ log('SANITY COLLAPSE. Melting…'); this.startMelt(); this.updateHUD(); this.render(); requestAnimationFrame(this.loop.bind(this)); return; }
+
+    if(this.sanity<=35){
+      if(!this.sanityWarned){
+        if(window.KomAudio){ window.KomAudio.playSanityLow(); }
+        this.sanityWarned = true;
+      }
+    } else if(this.sanityWarned && this.sanity>55){
+      this.sanityWarned = false;
+    }
 
     if(LEVELS[this.levelIndex].key==='psychosis'){
       if(this.controlInvertT<=0 && this.sanity<60 && Math.random()<0.010){ this.controlInvertT = 180; }
@@ -1402,6 +1618,7 @@ class Game{
       this.transitioning = true;
       const next = this.levelIndex + 1;
       if(next >= LEVELS.length){
+        if(window.KomAudio){ window.KomAudio.playVictory(); }
         log('Extraction complete. Exiting.');
         setTimeout(() => { window.location.href = 'endgame.html'; }, 350);
       } else {
@@ -1437,5 +1654,104 @@ window.Kommando={ setPalette(key){ const idx=LEVELS.findIndex(l=>l.key===key); i
   }catch(err){ console.error(err); }
 })();
 </script>
+
+<script>
+/* Virtual joystick — focuses canvas and emits Arrow + WASD */
+(function(){
+  const stick = document.getElementById('stick');
+  const nub   = document.getElementById('stickNub');
+  const canvas = document.querySelector('#screen');
+  if(!stick || !nub || !canvas) return;
+
+  canvas.setAttribute('tabindex','0');
+
+  const DEAD = 0.22;
+  const MAXR = 36;
+  let activeId = null;
+  let pressed = { ArrowUp:false, ArrowDown:false, ArrowLeft:false, ArrowRight:false };
+
+  function send(target, code, key, type){
+    const ev = new KeyboardEvent(type, { key, code, bubbles:true, cancelable:true });
+    target.dispatchEvent(ev);
+  }
+  function emit(dir, down){
+    const type = down ? 'keydown' : 'keyup';
+    const map = {
+      ArrowLeft:['ArrowLeft','ArrowLeft','KeyA','a'],
+      ArrowRight:['ArrowRight','ArrowRight','KeyD','d'],
+      ArrowUp:['ArrowUp','ArrowUp','KeyW','w'],
+      ArrowDown:['ArrowDown','ArrowDown','KeyS','s']
+    }[dir];
+    canvas.focus({preventScroll:true});
+    // Arrows
+    send(canvas, map[0], map[1], type); send(document, map[0], map[1], type); send(window, map[0], map[1], type);
+    // WASD duplicates
+    send(canvas, map[2], map[3], type); send(document, map[2], map[3], type); send(window, map[2], map[3], type);
+  }
+  function setKeys(nx, ny){
+    const want = {
+      ArrowLeft:  nx < -DEAD,
+      ArrowRight: nx >  DEAD,
+      ArrowUp:    ny < -DEAD,
+      ArrowDown:  ny >  DEAD
+    };
+    for(const k in want){
+      if(want[k] && !pressed[k]){ pressed[k]=true; emit(k,true); }
+      if(!want[k] &&  pressed[k]){ pressed[k]=false; emit(k,false); }
+    }
+  }
+  function reset(){
+    nub.style.transform = 'translate(0,0)';
+    setKeys(0,0); activeId = null;
+  }
+  function pos(e){
+    const r = stick.getBoundingClientRect();
+    const cx=r.left+r.width/2, cy=r.top+r.height/2;
+    let x, y;
+    if(e.touches){
+      const t=[...e.touches].find(t=>t.identifier===activeId)||e.touches[0];
+      if(!t) return null; x=t.clientX; y=t.clientY;
+    }else{ x=e.clientX; y=e.clientY; }
+    const dx=x-cx, dy=y-cy;
+    const dist=Math.hypot(dx,dy);
+    const ang=Math.atan2(dy,dx);
+    const clamp=Math.min(dist, MAXR);
+    const px=Math.cos(ang)*clamp, py=Math.sin(ang)*clamp;
+    const nx=px/MAXR, ny=py/MAXR;
+    return {px,py,nx,ny};
+  }
+
+  stick.addEventListener('touchstart', e=>{
+    e.preventDefault();
+    if(activeId===null) activeId=e.changedTouches[0].identifier;
+    canvas.focus({preventScroll:true});
+  }, {passive:false});
+
+  stick.addEventListener('touchmove', e=>{
+    e.preventDefault();
+    if(activeId===null) return;
+    const p=pos(e); if(!p) return;
+    nub.style.transform=`translate(${p.px}px,${p.py}px)`;
+    setKeys(p.nx,p.ny);
+  }, {passive:false});
+
+  stick.addEventListener('touchend', e=>{
+    if([...e.changedTouches].some(t=>t.identifier===activeId)) reset();
+  });
+  stick.addEventListener('touchcancel', reset);
+
+  /* Optional mouse support for desktop testing */
+  let md=false;
+  stick.addEventListener('mousedown', e=>{ md=true; const p=pos(e); if(p){ nub.style.transform=`translate(${p.px}px,${p.py}px)`; setKeys(p.nx,p.ny);} canvas.focus(); });
+  window.addEventListener('mousemove', e=>{ if(!md) return; const p=pos(e); if(p){ nub.style.transform=`translate(${p.px}px,${p.py}px)`; setKeys(p.nx,p.ny);} });
+  window.addEventListener('mouseup', ()=>{ if(md){ md=false; reset(); } });
+
+  /* Prevent page scroll while using joystick */
+  ['touchstart','touchmove'].forEach(t=>{
+    document.querySelector('.touch-controls')?.addEventListener(t, e=>e.preventDefault(), {passive:false});
+  });
+})();
+</script>
+
 </body>
 </html>

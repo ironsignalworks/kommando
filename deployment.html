@@ -39,6 +39,8 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="mobile-web-app-capable" content="yes" />
 
+  <script defer src="audio.js"></script>
+
 <style>
   :root{
     --bg:#051307;
@@ -252,6 +254,18 @@ DESCEND INTO MEMORY.
   </main>
 
 <script>
+  (function(){
+    const unlock = () => {
+      if (window.KomAudio && typeof window.KomAudio.resume === 'function') {
+        window.KomAudio.resume(true);
+      }
+    };
+    ['pointerdown','mousedown','touchstart'].forEach(evt => window.addEventListener(evt, unlock, { once: true, passive: true }));
+    window.addEventListener('keydown', unlock, { once: true });
+  })();
+</script>
+
+<script>
 (() => {
   /* Typewriter (tight) */
   const blocks = [...document.querySelectorAll('[data-type]')];
@@ -338,6 +352,7 @@ DESCEND INTO MEMORY.
   }
   requestAnimationFrame(tick);
   addEventListener('resize', () => { fit(); start = performance.now(); requestAnimationFrame(tick); }, {passive:true});
+  if(window.KomAudio){ window.KomAudio.playDeployment(); }
 })();
 </script>
 </body>
