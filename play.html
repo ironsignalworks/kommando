@@ -266,7 +266,7 @@ canvas{ display:block; width:100%; height:calc(100% - 0px); image-rendering:pixe
 
 .stick{
   position:relative;
-  width:120px; height:120px;
+  width:80px; height:80px;
   border:4px solid var(--hudBorder);
   background:color-mix(in srgb, var(--hud) 85%, transparent);
   box-shadow: inset 0 2px 0 var(--hudHi), inset 0 -2px 0 var(--hudLo);
@@ -275,22 +275,22 @@ canvas{ display:block; width:100%; height:calc(100% - 0px); image-rendering:pixe
 }
 .stick .nub{
   position:absolute; left:50%; top:50%;
-  width:56px; height:56px; margin:-28px 0 0 -28px;
-  border:4px solid var(--hudBorder);
+  width:76px; height:76px; margin:-28px 0 0 -28px;
+  border:8px solid var(--hudBorder);
   background:var(--hud2);
   box-shadow: inset 0 2px 0 var(--hudHi);
   border-radius:50%;
 }
 @media (max-width:520px){
-  .stick{ width:104px; height:104px; }
+  .stick{ width:100px; height:100px; }
   .stick .nub{ width:48px; height:48px; margin:-24px 0 0 -24px; }
 }
 /* Right-side joystick on mobile */
 @media (max-width: 860px){
   .touch-controls{
     left:auto !important;
-    right:8px !important;
-    bottom:48px !important; /* raised 40px on mobile */
+    right:58px !important;
+    bottom:128px !important; /* raised 40px on mobile */
     display:block !important;
     pointer-events:none;
   }
@@ -301,7 +301,6 @@ canvas{ display:block; width:100%; height:calc(100% - 0px); image-rendering:pixe
 }
 .view { overflow:hidden; }
 canvas { display:block; width:100%; height:100%; }
-
 
 </style>
 </head>
