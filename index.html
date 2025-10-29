@@ -747,9 +747,18 @@
         stopAt     = now + (parseInt(css().getPropertyValue('--sim-ms'))  ||1800);
         neonUntil  = stopAt + (parseInt(css().getPropertyValue('--neon-ms'))||1800);
 
-        if(!introSoundPlayed && window.KomAudio){
-          introSoundPlayed = true;
-          window.KomAudio.playIntro();
+        if(!introSoundPlayed){
+          const tryIntro = () => {
+            if(window.KomAudio && !introSoundPlayed){ introSoundPlayed = true; window.KomAudio.playIntro(); }
+          };
+          if (window.KomAudio) {
+            tryIntro();
+          } else if (document.readyState === 'complete' || document.readyState === 'interactive') {
+            // audio.js (deferred) should be loaded now
+            tryIntro();
+          } else {
+            window.addEventListener('DOMContentLoaded', tryIntro, { once: true });
+          }
         }
 
         // Start the FOG OF WAR typewriter later for better pacing

@@ -381,7 +381,14 @@ DESCEND INTO MEMORY.
   }
   requestAnimationFrame(tick);
   addEventListener('resize', () => { fit(); start = performance.now(); requestAnimationFrame(tick); }, {passive:true});
-  if(window.KomAudio){ window.KomAudio.playDeployment(); }
+  (function(){
+    const fire = () => { if (window.KomAudio) window.KomAudio.playDeployment(); };
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      fire();
+    } else {
+      window.addEventListener('DOMContentLoaded', fire, { once: true });
+    }
+  })();
 })();
 </script>
 </body>

@@ -296,7 +296,14 @@ The floor collapses into white noise.
   }
   requestAnimationFrame(raf);
   addEventListener('resize', () => { fit(); start = performance.now(); requestAnimationFrame(raf); }, {passive:true});
-  if(window.KomAudio){ window.KomAudio.playVictory(); }
+  (function(){
+    const fire = () => { if (window.KomAudio) window.KomAudio.playVictory(); };
+    if (document.readyState === 'complete' || document.readyState === 'interactive') {
+      fire();
+    } else {
+      window.addEventListener('DOMContentLoaded', fire, { once: true });
+    }
+  })();
 })();
 </script>
 </body>

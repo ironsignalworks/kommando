@@ -35,6 +35,20 @@
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="mobile-web-app-capable" content="yes" />
 
+<script>
+  // Map SFX → your files. Any missing key falls back to the synth sound.
+  window.KomAudioFiles = {
+    pickup:      'audio/sfx/pickup.mp3',
+    heal:        'audio/sfx/heal.mp3',
+    mine:        'audio/sfx/mine.mp3',
+    sanity_tick: 'audio/sfx/sanity-tick.mp3',
+
+    // leave the music/ambience as-is, or override those too if you want:
+    // intro: 'audio/intro_custom.mp3',
+    // background: 'audio/bg_loop_custom.mp3',
+  };
+</script>
+
 <script defer src="audio.js"></script>
 
 <style>
@@ -359,33 +373,6 @@ canvas { display:block; width:100%; height:100%; }
 function isPortraitMobile(){
   return window.matchMedia('(max-width: 860px) and (orientation: portrait)').matches;
 }
-</script>
-
-function setKeys(nx, ny){
-  // When the render is rotated +90° (portrait), rotate input −90° back to world space.
-  // screen -> world: [wx, wy] = [-ny, nx]
-  let wx = nx, wy = ny;
-  if (isPortraitMobile()){
-    wx =  ny;
-    wy = -nx;
-  }
-
-  const want = {
-    ArrowLeft:  wx < -DEAD,
-    ArrowRight: wx >  DEAD,
-    ArrowUp:    wy < -DEAD,
-    ArrowDown:  wy >  DEAD
-  };
-
-  for(const k in want){
-    if(want[k] && !pressed[k]){ fire(k,'keydown'); pressed[k]=true; }
-    if(!want[k] &&  pressed[k]){ fire(k,'keyup');   pressed[k]=false; }
-  }
-}
-
-<!-- stray script-closer removed -->
-
-<script>
 /* HUD ASCII logo renderer */
 (function(){
   const HUD_ASCII = `
@@ -1138,7 +1125,7 @@ class Game{
 
     document.getElementById('levelName').textContent=spec.name;
     document.getElementById('levelName').title = spec.name;
-          if(window.KomAudio){ window.KomAudio.playPickup(); }
+    if(window.KomAudio){ window.KomAudio.playDeployment(); }
       this.state='play'; this.melt=null;
     if(window.KomAudio){ window.KomAudio.startBackground(); }
   }
@@ -1268,7 +1255,7 @@ class Game{
       this.diamonds.delete(idx);
       this.sanity=clamp(this.sanity+5,0,100);
       this.flashT=12; this.flashColor='#ffd400'; this.glitchT=Math.max(this.glitchT,24);
-            if(window.KomAudio){ window.KomAudio.playPickup(); }
+      if(window.KomAudio){ window.KomAudio.playHeal(); }
       if(this.diamonds.size===0){
         log('All memory fragments collected — Exit unlocked.');
         if(LEVELS[this.levelIndex].key==='collapse' && this.extractionCountdown===null){
@@ -1295,7 +1282,7 @@ class Game{
       this.flashT=18;
       this.glitchT=Math.max(this.glitchT,18);
       this.sanity = clamp(this.sanity - 60, 0, 100);
-            if(window.KomAudio){ window.KomAudio.playPickup(); }
+      if(window.KomAudio){ window.KomAudio.playMine(); }
       if(this.sanity<=0){ log('Mine detonation — sanity collapse'); this.startMelt(); }
     }
   }
@@ -1715,17 +1702,18 @@ window.Kommando={ setPalette(key){ const idx=LEVELS.findIndex(l=>l.key===key); i
 <script>
 /* Virtual joystick — focuses canvas and emits Arrow + WASD */
 (function(){
-  const stick = document.getElementById('stick');
-  const nub   = document.getElementById('stickNub');
-  const canvas = document.querySelector('#screen');
-  if(!stick || !nub || !canvas) return;
+  const stick  = document.getElementById('stick');
+  const nub    = document.getElementById('stickNub');
+  const canvas = document.getElementById('screen');
+  if (!stick || !nub || !canvas) return;
 
+  // Canvas should be focusable so synthetic key events are received
   canvas.setAttribute('tabindex','0');
 
   const DEAD = 0.22;
   const MAXR = 36;
   let activeId = null;
-  let pressed = { ArrowUp:false, ArrowDown:false, ArrowLeft:false, ArrowRight:false };
+  const pressed = { ArrowUp:false, ArrowDown:false, ArrowLeft:false, ArrowRight:false };
 
   function send(target, code, key, type){
     const ev = new KeyboardEvent(type, { key, code, bubbles:true, cancelable:true });
@@ -1734,85 +1722,101 @@ window.Kommando={ setPalette(key){ const idx=LEVELS.findIndex(l=>l.key===key); i
   function emit(dir, down){
     const type = down ? 'keydown' : 'keyup';
     const map = {
-      ArrowLeft:['ArrowLeft','ArrowLeft','KeyA','a'],
-      ArrowRight:['ArrowRight','ArrowRight','KeyD','d'],
-      ArrowUp:['ArrowUp','ArrowUp','KeyW','w'],
-      ArrowDown:['ArrowDown','ArrowDown','KeyS','s']
+      ArrowLeft:  ['ArrowLeft','ArrowLeft','KeyA','a'],
+      ArrowRight: ['ArrowRight','ArrowRight','KeyD','d'],
+      ArrowUp:    ['ArrowUp','ArrowUp','KeyW','w'],
+      ArrowDown:  ['ArrowDown','ArrowDown','KeyS','s']
     }[dir];
     canvas.focus({preventScroll:true});
     // Arrows
-    send(canvas, map[0], map[1], type); send(document, map[0], map[1], type); send(window, map[0], map[1], type);
+    send(canvas,  map[0], map[1], type);
+    send(document,map[0], map[1], type);
+    send(window,  map[0], map[1], type);
     // WASD duplicates
-    send(canvas, map[2], map[3], type); send(document, map[2], map[3], type); send(window, map[2], map[3], type);
+    send(canvas,  map[2], map[3], type);
+    send(document,map[2], map[3], type);
+    send(window,  map[2], map[3], type);
   }
+
+  // Maps stick vector (nx,ny) → Arrow/WASD intents (handles portrait rotation)
   function setKeys(nx, ny){
-  // When we render portrait, the game world is rotated +90°.
-  // Rotate the stick vector -90° to map screen -> world.
-  let wx = nx, wy = ny;
-  if (isPortraitMobile()){
-    wx =  ny;
-    wy = -nx;
+    // When the world is rotated +90° in portrait, rotate input −90° back to world space.
+    let wx = nx, wy = ny;
+    if (typeof isPortraitMobile === 'function' && isPortraitMobile()){
+      wx =  ny;
+      wy = -nx;
+    }
+
+    const want = {
+      ArrowLeft:  wx < -DEAD,
+      ArrowRight: wx >  DEAD,
+      ArrowUp:    wy < -DEAD,
+      ArrowDown:  wy >  DEAD
+    };
+
+    for (const k in want){
+      if (want[k] && !pressed[k]){ pressed[k]=true;  emit(k,true); }
+      if (!want[k] && pressed[k]){ pressed[k]=false; emit(k,false); }
+    }
   }
 
-  const want = {
-    ArrowLeft:  wx < -DEAD,
-    ArrowRight: wx >  DEAD,
-    ArrowUp:    wy < -DEAD,
-    ArrowDown:  wy >  DEAD
-  };
-
-  for(const k in want){
-    if(want[k] && !pressed[k]){ pressed[k]=true; emit(k,true); }
-    if(!want[k] &&  pressed[k]){ pressed[k]=false; emit(k,false); }
-  }
-}
   function reset(){
     nub.style.transform = 'translate(0,0)';
-    setKeys(0,0); activeId = null;
+    setKeys(0,0);
+    activeId = null;
   }
-  function pos(e){
+
+  function posFromEvent(e){
     const r = stick.getBoundingClientRect();
-    const cx=r.left+r.width/2, cy=r.top+r.height/2;
+    const cx = r.left + r.width/2;
+    const cy = r.top  + r.height/2;
     let x, y;
-    if(e.touches){
-      const t=[...e.touches].find(t=>t.identifier===activeId)||e.touches[0];
-      if(!t) return null; x=t.clientX; y=t.clientY;
-    }else{ x=e.clientX; y=e.clientY; }
-    const dx=x-cx, dy=y-cy;
-    const dist=Math.hypot(dx,dy);
-    const ang=Math.atan2(dy,dx);
-    const clamp=Math.min(dist, MAXR);
-    const px=Math.cos(ang)*clamp, py=Math.sin(ang)*clamp;
-    const nx=px/MAXR, ny=py/MAXR;
-    return {px,py,nx,ny};
+
+    if (e.touches){
+      const t = [...e.touches].find(t => t.identifier === activeId) || e.touches[0];
+      if (!t) return null;
+      x = t.clientX; y = t.clientY;
+    } else {
+      x = e.clientX; y = e.clientY;
+    }
+
+    const dx = x - cx, dy = y - cy;
+    const dist = Math.hypot(dx,dy);
+    const ang  = Math.atan2(dy,dx);
+    const clamp = Math.min(dist, MAXR);
+    const px = Math.cos(ang)*clamp, py = Math.sin(ang)*clamp;
+    const nx = px / MAXR, ny = py / MAXR;
+    return { px, py, nx, ny };
   }
 
-  stick.addEventListener('touchstart', e=>{
+  // Touch
+  stick.addEventListener('touchstart', (e)=>{
     e.preventDefault();
-    if(activeId===null) activeId=e.changedTouches[0].identifier;
+    if (activeId === null) activeId = e.changedTouches[0].identifier;
     canvas.focus({preventScroll:true});
-  }, {passive:false});
+    const p = posFromEvent(e); if (p){ nub.style.transform = `translate(${p.px}px,${p.py}px)`; setKeys(p.nx,p.ny); }
+  }, { passive:false });
 
-  stick.addEventListener('touchmove', e=>{
+  stick.addEventListener('touchmove', (e)=>{
     e.preventDefault();
-    if(activeId===null) return;
-    const p=pos(e); if(!p) return;
-    nub.style.transform=`translate(${p.px}px,${p.py}px)`;
+    if (activeId === null) return;
+    const p = posFromEvent(e); if (!p) return;
+    nub.style.transform = `translate(${p.px}px,${p.py}px)`;
     setKeys(p.nx,p.ny);
-  }, {passive:false});
+  }, { passive:false });
 
-  stick.addEventListener('touchend', e=>{
-    if([...e.changedTouches].some(t=>t.identifier===activeId)) reset();
+  stick.addEventListener('touchend', (e)=>{
+    if ([...e.changedTouches].some(t => t.identifier === activeId)) reset();
   });
   stick.addEventListener('touchcancel', reset);
 
-  /* Optional mouse support for desktop testing */
-  let md=false;
-  stick.addEventListener('mousedown', e=>{ md=true; const p=pos(e); if(p){ nub.style.transform=`translate(${p.px}px,${p.py}px)`; setKeys(p.nx,p.ny);} canvas.focus(); });
-  window.addEventListener('mousemove', e=>{ if(!md) return; const p=pos(e); if(p){ nub.style.transform=`translate(${p.px}px,${p.py}px)`; setKeys(p.nx,p.ny);} });
+  // Mouse (desktop testing)
+  let md = false;
+  stick.addEventListener('mousedown', (e)=>{ md=true; const p=posFromEvent(e); if(p){ nub.style.transform=`translate(${p.px}px,${p.py}px)`; setKeys(p.nx,p.ny);} canvas.focus(); });
+  window.addEventListener('mousemove', (e)=>{ if(!md) return; const p=posFromEvent(e); if(p){ nub.style.transform=`translate(${p.px}px,${p.py}px)`; setKeys(p.nx,p.ny);} });
   window.addEventListener('mouseup', ()=>{ if(md){ md=false; reset(); } });
 
-  /* Prevent page scroll while using joystick */
+  // Prevent page scroll while using joystick
   ['touchstart','touchmove'].forEach(t=>{
     document.querySelector('.touch-controls')?.addEventListener(t, e=>e.preventDefault(), {passive:false});
   });
@@ -1821,15 +1825,3 @@ window.Kommando={ setPalette(key){ const idx=LEVELS.findIndex(l=>l.key===key); i
 
 </body>
 </html>
-
-
-
-
-
-
-
-
-
-
-
-

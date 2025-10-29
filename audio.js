@@ -2,6 +2,9 @@
   'use strict';
 
   const AudioCtor = window.AudioContext || window.webkitAudioContext;
+  const GMap = globalThis.Map;
+  const GSet = globalThis.Set;
+
 
   const fallback = {
     supported: !!AudioCtor,
@@ -33,10 +36,10 @@
     gameover: 'audio/gameover.mp3',
     victory: 'audio/victory.mp3',
     // Optional external overrides for new SFX
-    pickup: null,
-    heal: null,
-    mine: null,
-    sanity_tick: null,
+    pickup:      'audio/sfx/pickup.mp3',
+    heal:        'audio/sfx/heal.mp3',
+    mine:        'audio/sfx/mine.mp3',
+    sanity_tick: 'audio/sfx/sanity-tick.mp3',
   };
 
   const fetchAudio = (typeof fetch === 'function') ? fetch : null;
@@ -334,12 +337,12 @@
       this.master = null;
       this.ready = false;
       this.pending = [];
-      this.buffers = new Map();          // procedurally generated buffers
-      this.fileBuffers = new Map();      // decoded external buffers or pending promises
-      this.loops = new Map();
+      this.buffers = new GMap();
+      this.fileBuffers = new GMap();
+      this.loops = new GMap();
       this.loopIntents = Object.create(null);
-      this.pendingLoops = new Set();
-      this.bufferPromises = new Map();
+      this.pendingLoops = new GSet();
+      this.bufferPromises = new GMap();
       this.masterVolume = 0.38;
       this.lastSanityAt = 0;
       this.sanityCooldown = 2.2;
@@ -351,11 +354,11 @@
     }
 
     _ensureStores() {
-      if (!(this.buffers instanceof Map)) this.buffers = new Map();
-      if (!(this.fileBuffers instanceof Map)) this.fileBuffers = new Map();
-      if (!(this.loops instanceof Map)) this.loops = new Map();
-      if (!(this.pendingLoops instanceof Set)) this.pendingLoops = new Set();
-      if (!(this.bufferPromises instanceof Map)) this.bufferPromises = new Map();
+      if (!(this.buffers instanceof GMap)) this.buffers = new GMap();
+      if (!(this.fileBuffers instanceof GMap)) this.fileBuffers = new GMap();
+      if (!(this.loops instanceof GMap)) this.loops = new GMap();
+      if (!(this.pendingLoops instanceof GSet)) this.pendingLoops = new GSet();
+      if (!(this.bufferPromises instanceof GMap)) this.bufferPromises = new GMap();
       if (!this.loopIntents || typeof this.loopIntents !== 'object') this.loopIntents = Object.create(null);
     }
 
@@ -468,6 +471,10 @@
 
     obtainBuffer(name) {
       this._ensureStores();
+      if (!this.fileBuffers || typeof this.fileBuffers.has !== 'function') {
+        this.fileBuffers = new GMap();
+      }
+      
       const filePath = this.files[name];
       if (filePath) {
         const key = filePath;
