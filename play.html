@@ -439,6 +439,8 @@ function setKeys(nx, ny){
  **********************/
 const TILE_W = 24;   // chunkier sprites
 const TILE_H = 26;
+// Always-render zoom factor (world scrolls)
+const VIEW_ZOOM = (window.matchMedia("(max-width: 860px)").matches ? 3.5 : 2.5);
 // Tweak grid on portrait mobile to reduce lateral margins
 const __PORTRAIT = isPortraitMobile();
 const GRID_W = __PORTRAIT ? 52 : 60;
@@ -795,7 +797,7 @@ function drawPaverTile(g, w=16, h=16, opts={}){
 function buildSprites(){
   const u = 12; // base unit; tiles scale them up to TILE_W/TILE_H
 
-  // Player — GREEN fatigues
+  // Player - GREEN fatigues
   SPR.commando = makeSprite(10, u, (g)=>{
     const skin='#f1c07a', olive='#2b4b2b', olive2='#3c6a3c', strap='#4a3a1c', visor='#9fe3b0', dk='#142414';
     px(g,4,0, dk); px(g,5,0, dk);
@@ -812,6 +814,28 @@ function buildSprites(){
     px(g,3,11,'#232323'); px(g,6,11,'#232323');
   });
 
+  // Walking variant: simple 2-frame gait
+  SPR.commando_walk = makeSprite(10, u, (g)=>{
+    const skin='#f1c07a', olive='#2b4b2b', olive2='#3c6a3c', strap='#4a3a1c', visor='#9fe3b0', dk='#142414';
+    px(g,4,0, dk); px(g,5,0, dk);
+    px(g,3,1, dk); px(g,4,1, olive2); px(g,5,1, olive2); px(g,6,1, dk);
+    px(g,3,2, olive2); px(g,4,2, visor); px(g,5,2, visor); px(g,6,2, olive2);
+    px(g,4,3, skin); px(g,5,3, skin);
+    for(let y=4;y<8;y++){ for(let x=3;x<=6;x++) px(g,x,y, olive); }
+    px(g,3,5,'#2f6d2f'); px(g,6,6,'#2f6d2f'); px(g,4,7,'#397a39');
+    px(g,3,4, strap); px(g,6,4, strap);
+    // arms
+    px(g,2,5, skin); px(g,7,5, skin);
+    px(g,2,6, olive2); px(g,7,6, olive2);
+    // legs/feet offset for step illusion
+    for(let x=3;x<=6;x++) px(g,x,8,'#0e140e');
+    px(g,3,9,'#0e140e'); px(g,6,10,'#0e140e');
+    px(g,4,8,'#8a7b3c');
+    // legs: left longer, right shorter
+    for(let y=9;y<12;y++){ px(g,4,y, olive2); }
+    for(let y=9;y<12;y++){ if(y-1>=9) px(g,5,y-1, olive2); }
+    px(g,3,11,'#232323'); px(g,6,11,'#232323');
+  });
   // Enemy — drone
   SPR.enemy = makeSprite(10, u, (g)=>{
     const base='#6e1010', mid='#991b1b', hi='#ff3c3c', eye='#ffc04d';
@@ -1319,6 +1343,8 @@ class Game{
   const viewW = this.canvas.width;
   const viewH = this.canvas.height;
   const portrait = isPortraitMobile();
+  // Treat widths <=860px as mobile screens for zooming
+  const __IS_MOBILE_WIDTH = window.matchMedia('(max-width: 860px)').matches;
 
   // reset and paint bg
   ctx.setTransform(1,0,0,1,0,0);
@@ -1328,21 +1354,22 @@ class Game{
 
   ctx.save();
 
-  if (portrait){
-  // Rotate +90° and scale so the rotated WORLD height fits the canvas height (no overflow).
-  // After rotation, world size becomes (H,W) in canvas space, so lock to viewH/WORLD_W.
-  const scale = Math.min(viewH / WORLD_W, viewW / WORLD_H);
-  ctx.translate(viewW / 2, viewH / 2);   // center canvas
-  ctx.rotate(Math.PI / 2);
-  ctx.scale(scale, scale);
-  ctx.translate(-WORLD_W / 2, -WORLD_H / 2); // center world
-} else {
-  const scale   = Math.min(viewW / WORLD_W, viewH / WORLD_H);
-  const offsetX = Math.floor((viewW - WORLD_W * scale) / 2);
-  const offsetY = Math.floor((viewH - WORLD_H * scale) / 2);
-  ctx.translate(offsetX, offsetY);
-  ctx.scale(scale, scale);
-}
+  const baseScale = portrait ? Math.min(viewH / WORLD_W, viewW / WORLD_H)
+                           : Math.min(viewW / WORLD_W, viewH / WORLD_H);
+const scale = baseScale * VIEW_ZOOM;
+
+// Camera in world pixels, center on player, clamp to world bounds
+const viewWorldW = viewW / scale;
+const viewWorldH = viewH / scale;
+const playerPx = this.player.x * TILE_W + TILE_W / 2;
+const playerPy = this.player.y * TILE_H + TILE_H / 2;
+const camX = clamp(playerPx, viewWorldW / 2, WORLD_W - viewWorldW / 2);
+const camY = clamp(playerPy, viewWorldH / 2, WORLD_H - viewWorldH / 2);
+
+ctx.translate(viewW / 2, viewH / 2);
+if (portrait){ ctx.rotate(Math.PI / 2); }
+ctx.scale(scale, scale);
+ctx.translate(-camX, -camY);
 
   // ===== draw everything from here in world space (0..WORLD_W/H) =====
 
@@ -1376,10 +1403,16 @@ class Game{
     }
 
     const vis=computeFOV(this.map,this.player.x,this.player.y,12); for(const i of vis) this.seen.add(i);
-
-    // Tiles
-    for(let y=0;y<this.map.h;y++){
-      for(let x=0;x<this.map.w;x++){
+    // Tiles (culled to camera viewport)
+    const halfVW = viewWorldW / 2, halfVH = viewWorldH / 2;
+    const minPx = camX - halfVW, minPy = camY - halfVH;
+    const maxPx = camX + halfVW, maxPy = camY + halfVH;
+    const x0 = Math.max(0, Math.floor(minPx / TILE_W) - 1);
+    const x1 = Math.min(this.map.w - 1, Math.ceil(maxPx / TILE_W) + 1);
+    const y0 = Math.max(0, Math.floor(minPy / TILE_H) - 1);
+    const y1 = Math.min(this.map.h - 1, Math.ceil(maxPy / TILE_H) + 1);
+    for(let y=y0;y<=y1;y++){
+      for(let x=x0;x<=x1;x++){
         const i=y*this.map.w+x, seen=this.seen.has(i), visible=vis.has(i), isWall=this.map.isWall(x,y);
         const sx = x*TILE_W, sy = y*TILE_H;
 
@@ -1459,7 +1492,12 @@ class Game{
     // Entities
     for(const e of this.entities){
       if(e.type==='jack'){
-        drawSprite(ctx, 'commando', e.x*TILE_W, e.y*TILE_H, TILE_W, TILE_H);
+        {
+  const pressing = this.keys.has('arrowup')||this.keys.has('arrowdown')||this.keys.has('arrowleft')||this.keys.has('arrowright')||this.keys.has('w')||this.keys.has('a')||this.keys.has('s')||this.keys.has('d');
+  const alt = ((Math.floor((this.levelTicks||0)/140) % 2) === 1);
+  const sprite = (pressing && alt) ? 'commando_walk' : 'commando';
+  drawSprite(ctx, sprite, e.x*TILE_W, e.y*TILE_H, TILE_W, TILE_H);
+}
       } else {
         drawSprite(ctx, 'enemy', e.x*TILE_W, e.y*TILE_H, TILE_W, TILE_H);
       }
@@ -1783,3 +1821,15 @@ window.Kommando={ setPalette(key){ const idx=LEVELS.findIndex(l=>l.key===key); i
 
 </body>
 </html>
+
+
+
+
+
+
+
+
+
+
+
+

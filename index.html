@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>KOMMANDO — Fog of War</title>
 
   <!-- Fonts -->
@@ -90,9 +90,16 @@
       height:100%; margin:0; background:var(--bg); color:var(--ink);
       font-family:'Share Tech Mono', monospace;
       display:flex; align-items:center; justify-content:center; overflow:hidden;
+      /* Avoid notches and browser chrome overlapping content */
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
     }
     .wrap{
-      width:min(1200px,96vw); height:min(720px,92vh);
+      /* Scale to fit any screen, preserve aspect */
+      width:min(96vw, 1200px);
+      aspect-ratio: 5 / 3; /* ~1200x720 */
+      height:auto;
+      /* Cap height to visible viewport on mobile */
+      max-height:min(92svh, 720px);
       position:relative; background:var(--hud); border:4px solid var(--hud-border);
       box-shadow: inset 0 2px 0 var(--hud-hi), inset 0 -2px 0 var(--hud-lo);
       box-sizing:border-box;
@@ -113,9 +120,10 @@
     /* Hints */
     #hint{
       position:absolute; left:50%; bottom:8px; transform:translateX(-50%);
-      font-size:12px; letter-spacing:.06em; opacity:.82; z-index:4; user-select:none;
+      font-size:clamp(10px, 2.5vw, 12px); letter-spacing:.06em; opacity:.82; z-index:4; user-select:none;
       color:var(--ink-soft);
-      text-shadow:0 0 6px rgba(80,160,60,.25); white-space:nowrap;
+      text-shadow:0 0 6px rgba(80,160,60,.25);
+      white-space:normal; text-align:center; padding:0 8px;
       pointer-events:none;
     }
 
@@ -123,7 +131,7 @@
     #startBtn{
       position:absolute;
       left:50%;
-      bottom:10%;
+      bottom:clamp(8px, 6svh, 10%);
       transform:translateX(-50%);
       z-index:5;
 
@@ -133,28 +141,13 @@
       background:#102110;
       color:var(--ink);
       font-family:'Share Tech Mono', monospace;
-      font-size:clamp(16px, 2.6vw, 22px);
+      font-size:clamp(13px, 3.2vw, 22px);
       letter-spacing:.08em;
-      padding:.9rem 1.4rem;
+      padding:clamp(8px, 2.2vw, 14px) clamp(14px, 3.4vw, 24px);
       border-radius:8px;
       box-shadow:0 0 0 1px rgba(24,48,22,.7) inset, 0 0 24px rgba(126,252,107,.14);
       transition: transform .12s ease, box-shadow .12s ease, background .12s ease, color .12s ease, border-color .12s ease, opacity .25s ease;
-
-    .logo{
-      font-family:'JetBrains Mono', monospace !important;
-      font-size:6px;
-      line-height:6px;
-      letter-spacing:0;
-      font-variant-ligatures:none;
-      white-space:pre;
-      display:block;
-      color:var(--ink);
-      opacity:.95;
-      flex:0 0 auto;
-      max-width:none;
-      overflow:hidden;
-    }
-    .logo { transform: scale(0.85); transform-origin:left top; }
+      touch-action: manipulation;
 
       /* gated by default */
       opacity:0;
@@ -177,6 +170,29 @@
       transform:translateX(-50%);
       background:#142914;
       box-shadow:0 0 0 1px rgba(46,92,40,.75) inset, 0 0 18px rgba(126,252,107,.24);
+    }
+
+    /* Mono ASCII logo helper (used elsewhere); fix misplaced block and make scalable */
+    .logo{
+      font-family:'JetBrains Mono', monospace !important;
+      font-size:6px;
+      line-height:6px;
+      letter-spacing:0;
+      font-variant-ligatures:none;
+      white-space:pre;
+      display:block;
+      color:var(--ink);
+      opacity:.95;
+      flex:0 0 auto;
+      max-width:none;
+      overflow:hidden;
+    }
+    .logo { transform: scale(0.85); transform-origin:left top; }
+
+    /* Small screens: tighten spacing and hint */
+    @media (max-width: 480px) {
+      #hint { bottom: 6px; opacity: .78; }
+      #startBtn { bottom: clamp(6px, 5svh, 12%); }
     }
   </style>
 </head>
