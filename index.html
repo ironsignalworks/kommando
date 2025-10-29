@@ -57,13 +57,13 @@
       --accent:#7efc6b;
 
       /* timing */
-      --spawn-ms: 2200;     /* drip build */
-      --sim-ms:   1800;     /* build end -> fade skull + paint */
+      --spawn-ms: 3600;     /* drip build (longer for visible drips) */
+      --sim-ms:   4200;     /* build end -> fade skull + paint (extend for visible drips) */
       --ansi-ms:  1600;     /* skull type-in speed */
       --neon-ms:  1800;     /* neon shower duration after reveal */
 
       /* ink look (light) */
-      --max-particles: 200;
+      --max-particles: 400;
       --gutter: 24;
 
       --fade-alpha: 0.010;  /* build-phase decay inside mask */
@@ -193,6 +193,7 @@
     @media (max-width: 480px) {
       #hint { bottom: 6px; opacity: .78; }
       #startBtn { bottom: clamp(6px, 5svh, 12%); }
+      :root { --max-particles: 300; }
     }
   </style>
 </head>
@@ -352,6 +353,7 @@
         [ansiC, logoC, paintC, typeC].forEach(fitCanvas);
         const r = wrap.getBoundingClientRect();
         w = r.width; h = r.height;
+        const isMobile = (window.matchMedia && window.matchMedia('(max-width: 768px)').matches);
 
         [ansiCtx, logoCtx, pctx, typeCtx].forEach(ctx => {
           ctx.setTransform(DPR,0,0,DPR,0,0);
@@ -370,6 +372,19 @@
           h / Math.max(8, (rows + 4))
         ));
         fontPx = Math.max(12, Math.min(fontPx, 40));
+        // Mobile-only downsizing for the KOMMANDO ASCII logo
+        if (isMobile) {
+          fontPx = Math.max(4, Math.floor(fontPx * 0.25));
+        }
+        // Absolute vertical fit cap: ensure the ASCII block never overflows the canvas height
+        (function enforceVerticalFit(){
+          const offYtmp = Math.round(h * 0.06);
+          const maxPxByHeight = Math.floor(((h - 10 - offYtmp) / (rows * 1.2)));
+          if (isFinite(maxPxByHeight) && maxPxByHeight > 0) {
+            fontPx = Math.min(fontPx, maxPxByHeight);
+          }
+          fontPx = Math.max(isMobile ? 4 : 12, fontPx);
+        })();
 
         mW = Math.floor(w * DPR);
         mH = Math.floor(h * DPR);
@@ -388,8 +403,9 @@
         const blockW = chW * cols;
         const blockH = chH * rows;
 
+        // Center KOMMANDO ASCII logo on screen
         offX = Math.round((w - blockW)/2);
-        offY = Math.round(h * 0.06);  // raise KOMMANDO ASCII closer to the top
+        offY = Math.round((h - blockH)/2);
 
         for (let rI=0;rI<rows;rI++){
           const line = lines[rI];
@@ -412,7 +428,16 @@
           (rightAvailW>0? rightAvailW : w/2) / Math.max(6,(sCols+1)),
           rightAvailH / Math.max(6,(sRows+0.5))
         ));
-        sFontPx = Math.max(8, Math.min(sFontPx, 28));
+        sFontPx = Math.max(6, Math.min(sFontPx, 28));
+        // Mobile-only downsizing for the skull block; enlarge on desktop
+        if (isMobile) {
+          sFontPx = Math.max(6, Math.floor(sFontPx * 0.50));
+        } else {
+          const maxByW = Math.floor(((rightAvailW>0? rightAvailW : w/2) / Math.max(6,(sCols+1))));
+          const maxByH = Math.floor(rightAvailH / Math.max(6,(sRows+0.5)));
+          sFontPx = Math.floor(sFontPx * 1.20);
+          sFontPx = Math.max(8, Math.min(sFontPx, maxByW, maxByH, 42));
+        }
         ansiCtx.font = `${sFontPx}px ${ASCII_STACK}`;
         ansiCtx.textBaseline = 'top';
         const sChW = ansiCtx.measureText('█').width || ansiCtx.measureText('M').width;
@@ -447,14 +472,15 @@
       }
 
       function spawnParticle(build=true){
-        const band = Math.max(20, Math.floor(logoBox.w * 0.85));
-        const startX = Math.max(logoBox.x, logoBox.x + logoBox.w/2 - band/2);
+        const band = Math.max(20, Math.floor(logoBox.w));
+        const startX = logoBox.x + Math.random() * band;
         const wander = parseFloat(css().getPropertyValue('--wander'))||0.05;
         const baseVy = build ? (0.55 + Math.random()*0.45) : (0.75 + Math.random()*0.35);
         const r  = build ? (1.6 + Math.random()*2.2) : (1.0 + Math.random()*1.6);
+        const startY = (logoBox.y - Math.max(60, Math.floor(logoBox.h * 0.25))) - Math.random()*40;
         return {
-          x: startX + Math.random()*band,
-          y: (logoBox.y - 60) - Math.random()*60,
+          x: startX,
+          y: startY,
           vx:(Math.random()-0.5) * wander,
           vy: baseVy,
           r,
@@ -562,11 +588,25 @@
       /* -------- FOG OF WAR title (under logo near top) -------- */
       function startTypewriter(){
         const maxW = Math.floor(logoBox.w*0.95);
-        const ts = Math.min(64, Math.max(18, Math.floor(maxW/(TYPE_TEXT.length*0.62))));
-        const y  = Math.min(h*0.52, logoBox.y + logoBox.h + Math.max(20, Math.floor(logoBox.h*0.08)));
-        const cx = Math.floor(logoBox.x + logoBox.w/2);
+        let ts = Math.min(64, Math.max(18, Math.floor(maxW/(TYPE_TEXT.length*0.62))));
+        // Slightly smaller subtitle for balance
+        ts = Math.max(14, Math.floor(ts * 0.80));
+        const isMobile = (window.matchMedia && window.matchMedia('(max-width: 768px)').matches);
+        let y;
+        let cx;
+        if (isMobile) {
+          // On mobile, place FOG OF WAR at top center above the logo
+          y = Math.max(24, logoBox.y - Math.floor(ts * 1.4));
+          cx = Math.floor(w / 2);
+        } else {
+          y  = Math.min(h*0.52, logoBox.y + logoBox.h + Math.max(20, Math.floor(logoBox.h*0.08)));
+          cx = Math.floor(logoBox.x + logoBox.w/2);
+        }
+        // Bring text 40px down from current position for better spacing
+        y = y + 40;
 
         let idx=0, typing=true, caretOn=true;
+        const accent = (getComputedStyle(document.documentElement).getPropertyValue('--accent') || '#8cf874').trim();
 
         const draw = () => {
           typeCtx.clearRect(logoBox.x, y-ts*1.2, logoBox.w, ts*2.4);
@@ -574,9 +614,18 @@
           const txt = TYPE_TEXT.slice(0, idx);
           typeCtx.font = `${Math.round(ts)}px "Special Elite", "Courier Prime", monospace`;
 
-          typeCtx.globalAlpha = 0.65; typeCtx.fillStyle = '#e6e6e6';
+          // Black shadow for readability
+          typeCtx.save();
+          typeCtx.globalAlpha = 0.9;
+          typeCtx.fillStyle = '#000';
+          const sx = 2, sy = 2;
+          typeCtx.fillText(txt, cx + sx, y + sy);
+          typeCtx.restore();
+
+          // Neon accent color instead of grey
+          typeCtx.globalAlpha = 0.65; typeCtx.fillStyle = accent;
           typeCtx.fillText(txt, cx + (Math.random()*0.8-0.4), y + (Math.random()*0.8-0.4));
-          typeCtx.globalAlpha = 0.95;
+          typeCtx.globalAlpha = 0.95; typeCtx.fillStyle = accent;
           typeCtx.fillText(txt, cx + (Math.random()*0.4-0.2), y + (Math.random()*0.4-0.2));
 
           if(typing && caretOn){
@@ -640,7 +689,7 @@
         const DRAG = parseFloat(css().getPropertyValue('--drag'))||0.990;
 
         if(phase===0 && ts<spawnUntil && particles.length<MAX()){
-          for(let i=0;i<8;i++) particles.push(spawnParticle(true));
+          for(let i=0;i<12;i++) particles.push(spawnParticle(true));
         }
         if(phase===2 && particles.length<Math.floor(MAX()*0.35)){
           for(let i=0;i<6;i++) particles.push(spawnParticle(false));
@@ -703,7 +752,8 @@
           window.KomAudio.playIntro();
         }
 
-        setTimeout(()=> startTypewriter(), Math.max(80, (spawnUntil-now) + 150));
+        // Start the FOG OF WAR typewriter later for better pacing
+        setTimeout(()=> startTypewriter(), Math.max(80, (spawnUntil-now) + 1200));
         rafId = requestAnimationFrame(tick);
       }
 

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <title>KOMMANDO — FOG OF WAR</title>
 
   <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=VT323&display=swap" rel="stylesheet">
@@ -63,11 +63,12 @@
     margin:0; background:var(--bg); color:var(--ink);
     font-family:'VT323', monospace;
     display:grid; place-items:center;
+    padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
   }
 
   .frame{
     width:min(980px, 96vw);
-    height:min(560px, 90vh);
+    height:min(560px, 90svh);
     background:var(--hud); position:relative; overflow:hidden;
     border:4px solid var(--hud-border);
     box-shadow: inset 0 2px 0 var(--hud-hi), inset 0 -2px 0 var(--hud-lo);
@@ -151,6 +152,30 @@
   }
 
   @media (max-height: 560px){ .meta{ display:none; } }
+  
+  /* Mobile layout: stack panels and enlarge ASCII area */
+  @media (max-width: 600px){
+    .frame{
+      grid-template-columns: 1fr;
+      grid-auto-rows: auto;
+      height:min(640px, 92svh);
+      padding:12px 12px 40px;
+      gap:12px;
+    }
+    .left{
+      font-size: clamp(13px, 3.6vw, 17px);
+    }
+    .right{
+      border-left:none;
+      border-top:2px solid var(--hud-border);
+      padding-left:0;
+      padding-top:12px;
+      min-height: 40svh;
+      height: clamp(280px, 48svh, 440px);
+      max-height:none;
+    }
+    .cta{ top:auto; bottom: 12px; transform: translate(-50%, 0); }
+  }
 </style>
 </head>
 <body>
@@ -314,6 +339,10 @@ DESCEND INTO MEMORY.
       )
     );
     px = Math.max(7, Math.min(px, 16));
+    // If narrow viewport, bump min/max a bit for readability
+    if (window.matchMedia && window.matchMedia('(max-width: 600px)').matches) {
+      px = Math.max(9, Math.min(px, 18));
+    }
 
     ctx.font = `${px}px "VT323", monospace`;
     ctx.textBaseline = 'top';
