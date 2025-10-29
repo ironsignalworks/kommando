@@ -42,17 +42,19 @@
     heal:        'audio/sfx/heal.mp3',
     mine:        'audio/sfx/mine.mp3',
     sanity_tick: 'audio/sfx/sanity-tick.mp3',
+    levelup:     'audio/sfx/levelup.mp3', // NEW (optional)
 
-    // leave the music/ambience as-is, or override those too if you want:
+    // You can also override music/ambience here if you want:
     // intro: 'audio/intro_custom.mp3',
     // background: 'audio/bg_loop_custom.mp3',
   };
 </script>
 
+<!-- Load audio system -->
 <script defer src="audio.js"></script>
 
 <style>
-/* === Global dark-green + yellow theme with thick borders === */
+/* ==== KOMMANDO LAYOUT + HUD (restore) ==== */
 :root{
   --bg:#051307;
   --ink:#d1d725;
@@ -64,244 +66,153 @@
   --inkSoft:rgba(209,215,37,.8);
 }
 
-html,body{ height:100%; }
+html, body { height:100%; }
 body{
-  margin:0; background:var(--bg); color:var(--ink);
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
   font-family:'VT323', ui-monospace, Menlo, Consolas, monospace;
   overflow:hidden;
 }
 
-/* App gutters kept; subtle inner bevel */
+/* App uses 2-row grid: game view and HUD */
 .app{
-  display:grid; grid-template-rows: 1fr min(10vh, 110px);
-  height:100vh; width:100vw; padding:8px; gap:8px;
-  justify-items:center; align-content:center; box-sizing:border-box;
-  position:relative;
-}
-.app::before{
-  content:""; position:absolute; inset:4px; pointer-events:none;
-  outline:4px solid var(--hudBorder); outline-offset:-4px;
-  border-radius:0;
+  height:100vh;
+  display:grid;
+  grid-template-rows: 1fr auto;
+  background:var(--bg);
 }
 
-/* View: thick border + dark-green shell */
+/* World view (canvas wrapper) */
 .view{
-  position:relative; width:min(100%, 960px); height:100%;
-  background:#071309;
-  border:4px solid var(--hudBorder);
-  border-radius:0;
-  overflow:hidden; margin:0 auto; box-sizing:border-box; padding-bottom:0;
+  position:relative;
+  overflow:hidden;
+  background:#0a0f0a;
 }
-.view::before{
-  content:""; position:absolute; inset:0; pointer-events:none;
-  box-shadow: inset 0 2px 0 var(--hudHi), inset 0 -2px 0 var(--hudLo);
-}
-
-/* Canvas pixel-sharp */
-canvas{ display:block; width:100%; height:calc(100% - 0px); image-rendering:pixelated; box-sizing:border-box }
-
-/* HUD panel */
-.hud-bottom{
-  display:flex; align-items:center; gap:10px;
-  padding:3px 12px; background:var(--hud);
-  border:4px solid var(--hudBorder); border-radius:0;
-  width:min(100%, 960px); margin:0 auto; box-sizing:border-box;
-  overflow:hidden; font-size:15px; line-height:1;
-  flex-wrap:nowrap; position:relative;
-}
-.hud-bottom::before{
-  content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
-  box-shadow: inset 0 2px 0 var(--hudHi), inset 0 -2px 0 var(--hudLo);
-}
-
-/* Columns & rows */
-.hud-col{ display:flex; flex-direction:column; justify-content:center; gap:3px; min-width:0; }
-.hud-col.meta    { flex:1 1 8%;  min-width:180px; }
-.hud-col.stats   { flex:1 1 22%; min-width:300px; }
-.hud-col.controls{ flex:0 1 240px; min-width:200px; }
-.hud-row{ display:flex; align-items:center; gap:8px; white-space:nowrap; min-width:0; flex-wrap:nowrap; }
-
-/* ASCII logo */
-.logo{
+#screen{
   display:block;
-  width:300px;
-  height:26px;
-  flex:0 0 auto;
-  max-width:none;
-  image-rendering:pixelated;
-  opacity:.95;
-  margin-right: clamp(8px, -3vw, 0px); /* eat transparent padding on right */
-  pointer-events:none;
+  width:100%;
+  height:100%;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  touch-action:none; /* avoid touch scrolling */
 }
 
-/* Separators */
-.sep{ flex:0 0 2px; width:2px; align-self:stretch; background:var(--ink); margin:0; opacity:.85; }
-
-/* Title + level clamp */
-#levelName{
-  display:inline-block; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
-  max-width: clamp(180px, 46vw, 460px); line-height:1.1; font-size:15px; color:var(--inkSoft);
+/* Bottom HUD bar */
+.hud-bottom{
+  display:flex;
+  align-items:center;
+  gap:16px;
+  padding:12px 16px;
+  background:
+    linear-gradient(to bottom, var(--hud), var(--hud2));
+  border-top:2px solid var(--hudBorder);
+  box-shadow: inset 0 1px 0 var(--hudHi), 0 -2px 0 var(--hudLo);
+  min-height:92px;
+  color:var(--ink);
 }
 
-/* Tags / kbd chips */
+/* Logo canvas on the left */
+.hud-bottom .logo{
+  width:260px;     /* adjust if you want it smaller */
+  height:48px;
+  display:block;
+  image-rendering: pixelated;
+}
+
+/* Thin separator bars between HUD columns */
+.sep{
+  width:2px;
+  align-self:stretch;
+  background:linear-gradient(
+    to bottom,
+    rgba(255,255,200,.08),
+    rgba(0,0,0,.6)
+  );
+  border-left:1px solid rgba(255,255,200,.05);
+  border-right:1px solid rgba(0,0,0,.5);
+}
+
+/* Three main columns */
+.hud-col{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  min-width:0;
+}
+.hud-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  white-space:nowrap;
+}
+
+/* Tags (e.g., build version) */
 .tag{
-  padding:2px 7px; border:2px solid var(--hudBorder); border-radius:0;
-  background:var(--hud2); box-shadow: inset 0 1px 0 var(--hudHi);
-  font-size:14px; color:var(--ink);
-}
-.kbd{
-  background:var(--hud2); border:2px solid var(--hudBorder); padding:2px 7px;
-  border-radius:0; font-size:14px; color:var(--ink);
-  box-shadow: inset 0 1px 0 var(--hudHi);
+  display:inline-block;
+  padding:2px 6px;
+  border:2px solid var(--hudBorder);
+  background:rgba(0,0,0,.25);
+  border-radius:4px;
+  font-size:14px;
 }
 
-/* Meter */
+/* Meter (sanity bar) */
 .meter{
-  flex:1 1 260px; min-width:190px; max-width:420px; height:14px;
-  background:#0a140c; border:2px solid var(--hudBorder); border-radius:0;
-  overflow:hidden; position:relative; image-rendering:pixelated;
-}
-.meter>i{
-  display:block; height:100%;
-  background:repeating-linear-gradient(90deg, #ffd84d 0 10px, #ffb84d 10px 20px);
-}
-
-/* All text yellow inside HUD */
-.hud-bottom, .hud-bottom *{ color:var(--ink); }
-
-/* ===== Tablet down ===== */
-@media (max-width: 980px){
-  .logo{ flex:0 0 auto; max-width:none; }
-  .hud-col.controls{ flex:0 1 240px; min-width:200px; }
-}
-
-/* ===== Mobile: portrait-first + full HUD ===== */
-@media (max-width: 860px){
-  .app{
-    grid-template-rows: auto auto;   /* view then hud */
-    align-content:start;
-    height:100dvh; padding:6px; gap:6px;
-  }
-  .view{
-    width:100%;
-    height:68dvh;                     /* portrait playfield height */
-    max-height:calc(100dvh - 170px);  /* leave room for HUD */
-    aspect-ratio:auto;
-  }
-  canvas{ width:100% !important; height:100% !important; }
-
-  /* HUD order on mobile: Sanity (stats), Level, ASCII logo */
-  .hud-bottom{
-    display:grid;
-    grid-template-areas:
-      "stats"
-      "meta"
-      "logo";
-    grid-auto-rows:auto;
-    row-gap:8px;
-    column-gap:0;
-    width:100%;
-    padding:8px 10px;
-  }
-  .hud-col.meta{ grid-area:meta; min-width:0; }
-  .hud-col.stats{ grid-area:stats; min-width:0; }
-  /* Hide movement instructions on mobile */
-  .hud-col.controls{ display:none; }
-  /* Place ASCII logo canvas at bottom */
-  .logo{ grid-area:logo; display:block !important; width:180px; height:auto; margin-right:-24px; opacity:.95; }
-  /* Hide game title/build row on mobile, keep Level row */
-  .hud-col.meta .hud-row:first-child{ display:none; }
-
-  /* Mini logo visible on mobile */
-  .logo{
-    display:block !important;
-    width:180px; height:auto;
-    margin-right:-24px;
-    opacity:.95;
-  }
-
-  /* Middle row tries to keep one line; wraps meter if tight */
-  .hud-col.stats .hud-row{
-    flex-wrap:wrap; gap:8px; width:100%;
-  }
-  .hud-col.stats .hud-row .meter{
-    flex:1 1 280px; min-width:220px; max-width:100%; height:16px;
-  }
-
-  /* Bottom controls row can wrap */
-  .hud-col.controls .hud-row{
-    flex-wrap:wrap; gap:8px; width:100%;
-  }
-
-  .sep{ display:none; }
-  #levelName{ max-width:100%; }
-}
-
-/* ===== Small phones ===== */
-@media (max-width: 520px){
-  .hud-bottom{ font-size:14px; }
-  .hud-row{ gap:6px; }
-  .meter{ min-width:100%; height:16px; }
-  .kbd,.tag{ font-size:12px; padding:6px 8px; border-width:2px; }
-  .kbd, .tag{ min-height:36px; display:inline-flex; align-items:center; }
-}
-
-/* Focus */
-:focus-visible{ outline:2px solid var(--ink); outline-offset:2px; }
-
-/* World frame only */
-.app::before{ content:none !important; }
-.view{
-  border:4px solid var(--hudBorder) !important;
-  background:transparent !important;
-  padding-bottom:0 !important;
-}
-
-/* ===== Virtual joystick (mobile only) ===== */
-.touch-controls{
-  position:fixed; left:8px; bottom:48px; /* raised 40px */
-  display:none; z-index:30; pointer-events:none;
-}
-@media (max-width: 860px){ .touch-controls{ display:block; } }
-
-.stick{
+  --h:12px;
   position:relative;
-  width:80px; height:80px;
-  border:4px solid var(--hudBorder);
-  background:color-mix(in srgb, var(--hud) 85%, transparent);
-  box-shadow: inset 0 2px 0 var(--hudHi), inset 0 -2px 0 var(--hudLo);
-  border-radius:50%;
-  pointer-events:auto; touch-action:none;
+  width:180px;
+  height:var(--h);
+  border:2px solid var(--hudBorder);
+  background:rgba(0,0,0,.35);
+  border-radius:4px;
+  overflow:hidden;
 }
-.stick .nub{
-  position:absolute; left:50%; top:50%;
-  width:76px; height:76px; margin:-28px 0 0 -28px;
-  border:8px solid var(--hudBorder);
-  background:var(--hud2);
-  box-shadow: inset 0 2px 0 var(--hudHi);
-  border-radius:50%;
+.meter i{
+  display:block;
+  height:100%;
+  background:linear-gradient(90deg, #7efc6b, #c8f35a);
 }
-@media (max-width:520px){
-  .stick{ width:100px; height:100px; }
-  .stick .nub{ width:48px; height:48px; margin:-24px 0 0 -24px; }
-}
-/* Right-side joystick on mobile */
-@media (max-width: 860px){
-  .touch-controls{
-    left:auto !important;
-    right:58px !important;
-    bottom:128px !important; /* raised 40px on mobile */
-    display:block !important;
-    pointer-events:none;
-  }
-  .touch-controls .stick{
-    margin-left:auto;          /* push to right edge inside the container */
-    pointer-events:auto;
-  }
-}
-.view { overflow:hidden; }
-canvas { display:block; width:100%; height:100%; }
 
+/* Keyboard hint chips */
+.kbd{
+  display:inline-block;
+  padding:1px 6px;
+  border:2px solid var(--hudBorder);
+  background:rgba(0,0,0,.3);
+  border-radius:4px;
+}
+
+/* Make HUD wrap nicely on small screens */
+@media (max-width: 860px){
+  .hud-bottom{
+    flex-wrap:wrap;
+    row-gap:8px;
+    padding:10px;
+    min-height:0;
+  }
+  .hud-bottom .logo{ width:200px; height:42px; }
+  .meter{ width:140px; }
+}
+
+/* Touch joystick visibility: hidden on desktop */
+.touch-controls{ display:none; position:absolute; inset:auto 16px 16px auto; }
+.touch-controls .stick{
+  width:110px; height:110px; border-radius:50%;
+  background:rgba(0,0,0,.35); border:2px solid var(--hudBorder);
+  position:relative;
+}
+.touch-controls .nub{
+  width:46px; height:46px; border-radius:50%;
+  background:rgba(255,255,200,.1); border:2px solid var(--hudBorder);
+  position:absolute; top:32px; left:32px; transform:translate(0,0);
+}
+@media (hover:none) and (pointer:coarse){
+  .touch-controls{ display:block; }
+}
+
+/* Keep everything from grabbing scroll/zoom while playing */
+canvas, .view, .touch-controls { touch-action: none; }
 </style>
 </head>
 <body>
@@ -311,7 +222,7 @@ canvas { display:block; width:100%; height:100%; }
       <canvas id="screen" width="960" height="576"></canvas>
     </div>
 
-    <!-- HUD (separate from touch-controls so it shows on desktop) -->
+    <!-- HUD -->
     <div class="hud-bottom">
       <canvas class="logo" id="hudLogo"></canvas>
       <div class="sep"></div>
@@ -349,13 +260,13 @@ canvas { display:block; width:100%; height:100%; }
     </div>
   </div>
 
-  <!-- Touch joystick lives OUTSIDE HUD and is hidden on desktop -->
+  <!-- Touch joystick (hidden on desktop) -->
   <div class="touch-controls" aria-hidden="true">
     <div class="stick" id="stick">
       <div class="nub" id="stickNub"></div>
     </div>
   </div>
-
+  <script defer src="./audio.js"></script>
 <script>
 /* one-time audio unlock */
 (function(){
@@ -423,11 +334,9 @@ function isPortraitMobile(){
 /**********************
  * CONFIG & CONSTANTS *
  **********************/
-const TILE_W = 24;   // chunkier sprites
+const TILE_W = 24;
 const TILE_H = 26;
-// Always-render zoom factor (world scrolls)
 const VIEW_ZOOM = (window.matchMedia("(max-width: 860px)").matches ? 3.5 : 2.5);
-// Tweak grid on portrait mobile to reduce lateral margins
 const __PORTRAIT = isPortraitMobile();
 const GRID_W = __PORTRAIT ? 52 : 60;
 const GRID_H = __PORTRAIT ? 34 : 30;
@@ -451,27 +360,22 @@ const PALETTES = {
 };
 
 const LEVELS = [
-  // 1) Tutorial-ish: roomy, safe, lets players learn
   { id:1, key:'reality',   name:'WELCOME HOME',
     enemies:1, diamonds:1, mines:0, heals:2,
     complexity:{ rooms:10, connectors:3, carveSeeds:1, carveStepMul:1.10 } },
 
-  // 2) Wider maps, occasional ambush spawns (your jungle behavior), more to collect
   { id:2, key:'jungle',    name:'FLASHBACK',
     enemies:2, diamonds:2, mines:0, heals:2,
     complexity:{ rooms:14, connectors:5, carveSeeds:3, carveStepMul:1.60 } },
 
-  // 3) Threat awareness (line-of-sight chasers), mines appear
   { id:3, key:'paranoia',  name:'TARGETS OF OPPORTUNITY',
     enemies:3, diamonds:2, mines:1, heals:2,
     complexity:{ rooms:15, connectors:5, carveSeeds:3, carveStepMul:1.35 } },
 
-  // 4) Faster enemies sometimes, tighter corridors, more fragments + mines
   { id:4, key:'psychosis', name:'THE RAID',
     enemies:4, diamonds:3, mines:2, heals:2,
     complexity:{ rooms:16, connectors:6, carveSeeds:4, carveStepMul:1.45 } },
 
-  // 5) Collapse pressure + extraction timer after all fragments; dense, hazardous
   { id:5, key:'collapse',  name:'EXTRACTION',
     enemies:5, diamonds:3, mines:3, heals:2,
     complexity:{ rooms:18, connectors:7, carveSeeds:4, carveStepMul:1.60 } },
@@ -952,6 +856,11 @@ class Game{
     this.melt=null;
     this.transitioning = false;
 
+    // Proactively arm background music so round 1 plays on first gesture
+    if (window.KomAudio?.armAutoBackground) {
+      window.KomAudio.armAutoBackground({ gain: 0.65, fadeIn: 1.4 });
+    }
+
     this.resetLevel();
     this.bindInput();
 
@@ -983,13 +892,12 @@ class Game{
     this.ctx.textBaseline = 'top';
   }
   
-  resetLevel(){
+    resetLevel(){
     if (window.KomAudio) { try{ window.KomAudio.hardStopAll({ immediate:true }); }catch(e){} }
     const spec=LEVELS[this.levelIndex];
     this.levelTicks = 0;
     this.rainSeed = Math.random()*1000;
     this.staticSeed = Math.random()*1000;
-
     // Map
     this.map=new Map(GRID_W,GRID_H);
     this.map.generate(this.rng.int(1e9), spec.complexity || {});
@@ -1125,9 +1033,12 @@ class Game{
 
     document.getElementById('levelName').textContent=spec.name;
     document.getElementById('levelName').title = spec.name;
+
     if(window.KomAudio){ window.KomAudio.playDeployment(); }
-      this.state='play'; this.melt=null;
-    if(window.KomAudio){ window.KomAudio.startBackground(); }
+    this.state='play'; this.melt=null;
+
+    // Start/continue background loop
+    if(window.KomAudio){ window.KomAudio.startBackground({ gain:0.65, fadeIn:1.4 }); }
   }
 
   pickNewPatrol(e){ let tx,ty; do{ tx=rand(this.map.w); ty=rand(this.map.h); } while(this.map.isWall(tx,ty)); e.tx=tx; e.ty=ty; }
@@ -1172,8 +1083,8 @@ class Game{
     this.ammo--;
     const [dx,dy]=this.lastDir;
     this.bullets.push({x:this.player.x+dx*0.1,y:this.player.y+dy*0.1,dx,dy,life:140});
-          if(window.KomAudio){ window.KomAudio.playPickup(); }
-      }
+    if(window.KomAudio){ window.KomAudio.playPickup(); }
+  }
 
   updateBullets(dt){
     const speed=BULLET_SPEED*dt;
@@ -1270,8 +1181,8 @@ class Game{
       this.seeds.delete(idx);
       this.sanity = clamp(this.sanity + 25, 0, 100);
       this.flashT = 10; this.flashColor = '#6bff98';
-            if(window.KomAudio){ window.KomAudio.playPickup(); }
-      }
+      if(window.KomAudio){ window.KomAudio.playPickup(); }
+    }
   }
 
   checkMine(){
@@ -1560,10 +1471,10 @@ ctx.translate(-camX, -camY);
 
   startMelt(){
     if(window.KomAudio && this.state!=='melting' && this.state!=='gameover'){
-    try{
-    window.KomAudio.stopBackground({ fade:true });
-    window.KomAudio.playGameOver();
-    }catch(e){ console.warn('KomAudio gameover audio failed', e); }
+      try{
+        window.KomAudio.stopBackground({ fade:true });
+        window.KomAudio.playGameOver();
+      }catch(e){ console.warn('KomAudio gameover audio failed', e); }
     }
     const w=this.canvas.width, h=this.canvas.height;
     const off=document.createElement('canvas'); off.width=w; off.height=h; const octx=off.getContext('2d');
@@ -1671,37 +1582,50 @@ ctx.translate(-camX, -camY);
         log('Extraction complete. Exiting.');
         setTimeout(() => { window.location.href = 'endgame.html'; }, 350);
       } else {
+        // NEW: level-up SFX on door crossing
+        if (window.KomAudio) { window.KomAudio.playLevelUp(); }
         log('Extraction point reached. Descending.');
-        setTimeout(() => { this.levelIndex = next; this.resetLevel(); this.transitioning = false; }, 0);
+        setTimeout(() => {
+          this.levelIndex = next;
+          this.resetLevel();
+          this.transitioning = false;
+        }, 0);
       }
       requestAnimationFrame(this.loop.bind(this));
       return;
     }
 
-            this.updateHUD();
-      this.render();
+    this.updateHUD();
+    this.render();
     requestAnimationFrame(this.loop.bind(this));
   }
 }
 
-/**********************
+ /**********************
  * BOOT
  **********************/
 buildSprites();
-const game=new Game();
-window.Kommando={ setPalette(key){ const idx=LEVELS.findIndex(l=>l.key===key); if(idx>=0){ game.levelIndex=idx; game.resetLevel(); } } };
+const game = new Game();
+window.Kommando = {
+  setPalette(key){
+    const idx = LEVELS.findIndex(l => l.key === key);
+    if (idx >= 0) { game.levelIndex = idx; game.resetLevel(); }
+  }
+};
 
 /**********************
  * SELF TEST
  **********************/
 (function runTests(){
   try{
-    const m=new Map(60,30); m.generate(12345, { rooms:12, connectors:3, carveSeeds:2, carveStepMul:1.3 });
+    const m=new Map(60,30);
+    m.generate(12345, { rooms:12, connectors:3, carveSeeds:2, carveStepMul:1.3 });
     const vis=computeFOV({w:60,h:30,isWall:(x,y)=>false}, 30,15,6);
     console.assert(vis.size>1,'fov ok');
     console.log('TEST OK');
   }catch(err){ console.error(err); }
 })();
+
 </script>
 
 <script>
@@ -1828,5 +1752,6 @@ window.Kommando={ setPalette(key){ const idx=LEVELS.findIndex(l=>l.key===key); i
 })();
 </script>
 
+ 
 </body>
 </html>

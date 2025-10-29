@@ -5,9 +5,11 @@
   const GMap = globalThis.Map;
   const GSet = globalThis.Set;
 
-
+  // ---------- Fallback (no WebAudio) ----------
   const fallback = {
     supported: !!AudioCtor,
+    ctx: null,
+
     resume() { return Promise.resolve(false); },
     play() {},
     startLoop() {},
@@ -15,50 +17,62 @@
     playIntro() {},
     playDeployment() {},
     playSanityLow() {},
-    
-    hardStopAll(opts = {}){
+
+    _ensureStores(){
+      if (!this.loops) this.loops = new Map();
+      if (!this.pendingLoops) this.pendingLoops = new Map();
+      if (!this.oneShots) this.oneShots = new Set();
+      if (!this.loopIntents) this.loopIntents = Object.create(null);
+    },
+
+    hardStopAll(opts = {}) {
       this._ensureStores();
       const fade = opts.fade ?? (opts.immediate ? 0 : 0.12);
       const ctx = this.ctx;
-      try{
-        for(const [name,handle] of this.loops){
-          try{
-            if (fade>0 && ctx){
+
+      try {
+        for (const [, handle] of this.loops) {
+          try {
+            if (fade > 0 && ctx && handle?.gain && handle?.source) {
               handle.gain.gain.cancelScheduledValues(ctx.currentTime);
               handle.gain.gain.setValueAtTime(handle.gain.gain.value, ctx.currentTime);
               handle.gain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + fade);
               handle.source.stop(ctx.currentTime + fade + 0.02);
-            }else{
+            } else if (handle?.source) {
               handle.source.stop();
             }
-          }catch(e){}
+          } catch(e){}
         }
-      }finally{
+      } finally {
         this.loops.clear();
-        try{ this.pendingLoops.clear(); }catch(e){}
+        try { this.pendingLoops.clear(); } catch(e){}
         this.loopIntents = Object.create(null);
       }
-      try{
-        for(const s of Array.from(this.oneShots||[])){
-          try{ s.stop(0); }catch(e){}
+
+      try {
+        for (const s of Array.from(this.oneShots || [])) {
+          try { s.stop(0); } catch(e){}
           this.oneShots.delete(s);
         }
-      }catch(e){}
-    }
-playGameOver() {},
+      } catch(e){}
+    },
+
+    playGameOver() {},
     playVictory() {},
     startBackground() {},
     stopBackground() {},
     configureFiles() {},
-    // New SFX no-ops for environments without WebAudio
+    armAutoBackground() {},
+
+    // SFX no-ops
     playPickup() {},
     playHeal() {},
     playMine() {},
     playSanityTick() {},
-    hardStopAll() {}
+    playLevelUp() {}
   };
 
-  // File names map (override via window.KomAudioFiles before this script loads)
+  // ---------- File map (can be overridden before load via window.KomAudioFiles) ----------
   const DEFAULT_FILE_MAP = {
     intro: 'audio/intro.mp3',
     deployment: 'audio/deployment.mp3',
@@ -66,11 +80,12 @@ playGameOver() {},
     sanity: 'audio/sanity_low.mp3',
     gameover: 'audio/gameover.mp3',
     victory: 'audio/victory.mp3',
-    // Optional external overrides for new SFX
+    // SFX (optional overrides; otherwise procedural)
     pickup:      'audio/sfx/pickup.mp3',
     heal:        'audio/sfx/heal.mp3',
     mine:        'audio/sfx/mine.mp3',
     sanity_tick: 'audio/sfx/sanity-tick.mp3',
+    levelup:     'audio/sfx/levelup.mp3'
   };
 
   const fetchAudio = (typeof fetch === 'function') ? fetch : null;
@@ -80,15 +95,12 @@ playGameOver() {},
     return;
   }
 
-  function clamp(v, min, max) {
-    return v < min ? min : v > max ? max : v;
-  }
-
+  // ---------- DSP helpers ----------
+  function clamp(v, min, max) { return v < min ? min : v > max ? max : v; }
   function pseudoRandom(i, seed) {
     const x = Math.sin((i + seed * 13.37) * 12.9898) * 43758.5453;
     return x - Math.floor(x);
   }
-
   function edgeFade(data, sampleRate, seconds) {
     if (!seconds) return;
     const fadeSamples = Math.min(Math.floor(seconds * sampleRate), Math.floor(data.length / 2));
@@ -98,7 +110,6 @@ playGameOver() {},
       data[data.length - 1 - i] *= factor;
     }
   }
-
   function normalize(data, target) {
     if (!target) return;
     let peak = 0;
@@ -108,26 +119,19 @@ playGameOver() {},
     }
     if (peak <= 0) return;
     const gain = target / peak;
-    for (let i = 0; i < data.length; i++) {
-      data[i] *= gain;
-    }
+    for (let i = 0; i < data.length; i++) data[i] *= gain;
   }
-
   function saturate(data, drive) {
     if (!drive) return;
     const k = drive;
-    for (let i = 0; i < data.length; i++) {
-      data[i] = Math.tanh(data[i] * k);
-    }
+    for (let i = 0; i < data.length; i++) data[i] = Math.tanh(data[i] * k);
   }
-
   function finalizeChannel(data, sampleRate, spec) {
     if (!spec) return;
     edgeFade(data, sampleRate, spec.edgeFade ?? 0.02);
     if (spec.saturate) saturate(data, spec.saturate);
     normalize(data, spec.target ?? 0.85);
   }
-
   function addBlip(data, sampleRate, opts) {
     const startIndex = Math.max(0, Math.floor(opts.start * sampleRate));
     const endIndex = Math.min(data.length, Math.floor((opts.start + opts.dur) * sampleRate));
@@ -152,19 +156,18 @@ playGameOver() {},
     }
   }
 
-  function buildIntro(data, sampleRate, channelIndex) {
-    const len = data.length;
-    let phaseMain = 0;
-    let phaseSub = 0;
-    let phaseShimmer = 0;
+  // ---------- Procedural builders ----------
+  function buildIntro(d, sr, ch) {
+    const len = d.length;
+    let phaseMain = 0, phaseSub = 0, phaseShimmer = 0;
     for (let i = 0; i < len; i++) {
-      const t = i / sampleRate;
+      const t = i / sr;
       const sweepFreq = 110 + 80 * Math.pow(t, 1.1);
-      phaseMain += (2 * Math.PI * sweepFreq) / sampleRate;
-      const subFreq = 45 + 14 * Math.sin(t * 2 * Math.PI * 0.25 + channelIndex * 0.2);
-      phaseSub += (2 * Math.PI * subFreq) / sampleRate;
+      phaseMain += (2 * Math.PI * sweepFreq) / sr;
+      const subFreq = 45 + 14 * Math.sin(t * 2 * Math.PI * 0.25 + ch * 0.2);
+      phaseSub += (2 * Math.PI * subFreq) / sr;
       const shimmerFreq = 420 + 60 * Math.sin(t * 2 * Math.PI * 0.6);
-      phaseShimmer += (2 * Math.PI * shimmerFreq) / sampleRate;
+      phaseShimmer += (2 * Math.PI * shimmerFreq) / sr;
 
       const envUp = Math.min(1, t / 0.35);
       const envDown = Math.pow(Math.max(0, 1 - t / 2.6), 1.4);
@@ -172,146 +175,123 @@ playGameOver() {},
 
       let sample = 0.58 * Math.sin(phaseMain);
       sample += 0.3 * Math.sin(phaseSub);
-      sample += 0.18 * Math.sin(phaseShimmer + channelIndex * 0.3) * (0.7 + 0.3 * Math.sin(t * 2 * Math.PI * 0.5));
+      sample += 0.18 * Math.sin(phaseShimmer + ch * 0.3) * (0.7 + 0.3 * Math.sin(t * 2 * Math.PI * 0.5));
       sample += 0.1 * Math.sin(phaseMain * 2) * envUp;
-      data[i] = sample * env;
+      d[i] = sample * env;
     }
   }
 
-  function buildDeployment(data, sampleRate, channelIndex) {
+  function buildDeployment(d, sr, ch) {
     const hits = [0.0, 0.35, 0.7, 1.15];
     hits.forEach((start, idx) => {
       const base = 170 + idx * 24;
-      addBlip(data, sampleRate, {
-        start,
-        dur: 0.22,
-        freq: (ratio) => base * (1 + 0.18 * (1 - ratio)) * (channelIndex ? 0.98 : 1.02),
-        amp: 0.58,
-        envPower: 1.15,
-        harmonics: [0.35],
+      addBlip(d, sr, {
+        start, dur: 0.22,
+        freq: (r) => base * (1 + 0.18 * (1 - r)) * (ch ? 0.98 : 1.02),
+        amp: 0.58, envPower: 1.15, harmonics: [0.35],
       });
-      addBlip(data, sampleRate, {
-        start: start + 0.08,
-        dur: 0.28,
-        freq: base / 2,
-        amp: 0.26,
-        envPower: 1.2,
-      });
+      addBlip(d, sr, { start: start + 0.08, dur: 0.28, freq: base / 2, amp: 0.26, envPower: 1.2 });
     });
 
     let noisePhase = 0;
-    for (let i = 0; i < data.length; i++) {
-      const t = i / sampleRate;
-      noisePhase += (2 * Math.PI * 0.5) / sampleRate;
+    for (let i = 0; i < d.length; i++) {
+      const t = i / sr;
+      noisePhase += (2 * Math.PI * 0.5) / sr;
       const pulse = (Math.sin(noisePhase) + 1) * 0.5;
-      const grit = (pseudoRandom(i, 3 + channelIndex * 11) - 0.5) * 0.22 * pulse;
-      data[i] += grit;
+      const grit = (pseudoRandom(i, 3 + ch * 11) - 0.5) * 0.22 * pulse;
+      d[i] += grit;
       const bed = 0.08 * Math.sin(2 * Math.PI * 52 * t) * (0.4 + 0.6 * pulse);
-      data[i] += bed;
+      d[i] += bed;
     }
   }
 
-  function buildBackground(data, sampleRate, channelIndex) {
-    const len = data.length;
-    let phaseLow = 0;
-    let phaseMid = 0;
+  function buildBackground(d, sr, ch) {
+    const len = d.length;
+    let phaseLow = 0, phaseMid = 0;
     for (let i = 0; i < len; i++) {
-      const t = i / sampleRate;
-      const drift = 1 + 0.03 * Math.sin(t * 2 * Math.PI * 0.08 + channelIndex * 0.17);
-      const base = 55 * drift * (channelIndex ? 0.997 : 1.003);
-      phaseLow += (2 * Math.PI * base) / sampleRate;
+      const t = i / sr;
+      const drift = 1 + 0.03 * Math.sin(t * 2 * Math.PI * 0.08 + ch * 0.17);
+      const base = 55 * drift * (ch ? 0.997 : 1.003);
+      phaseLow += (2 * Math.PI * base) / sr;
       const midFreq = base * 2.02 + 12 * Math.sin(t * 2 * Math.PI * 0.18);
-      phaseMid += (2 * Math.PI * midFreq) / sampleRate;
+      phaseMid += (2 * Math.PI * midFreq) / sr;
       const low = 0.5 * Math.sin(phaseLow);
       const mid = 0.3 * Math.sin(phaseMid);
-      const noise = (pseudoRandom(i, channelIndex * 21) - 0.5) * 0.2;
+      const noise = (pseudoRandom(i, ch * 21) - 0.5) * 0.2;
       const pulse = 0.5 + 0.5 * Math.sin(t * 2 * Math.PI * 0.5);
-      data[i] = low + mid + noise * (0.4 + 0.6 * pulse);
+      d[i] = low + mid + noise * (0.4 + 0.6 * pulse);
     }
   }
 
-  function buildSanity(data, sampleRate, channelIndex) {
+  function buildSanity(d, sr, ch) {
     const pulses = [0.0, 0.58, 1.16];
     pulses.forEach((start, idx) => {
       const base = 420 - idx * 30;
-      addBlip(data, sampleRate, {
-        start,
-        dur: 0.28,
-        freq: (ratio) => base * (1 - 0.22 * ratio),
-        amp: 0.62,
-        envPower: 1.35,
-        phaseOffset: channelIndex * 0.2,
-        harmonics: [0.2],
+      addBlip(d, sr, {
+        start, dur: 0.28, freq: (r) => base * (1 - 0.22 * r),
+        amp: 0.62, envPower: 1.35, phaseOffset: ch * 0.2, harmonics: [0.2],
       });
-      addBlip(data, sampleRate, {
-        start: start + 0.12,
-        dur: 0.36,
-        freq: 90,
-        amp: 0.24,
-        envPower: 1.1,
-      });
+      addBlip(d, sr, { start: start + 0.12, dur: 0.36, freq: 90, amp: 0.24, envPower: 1.1 });
     });
 
-    for (let i = 0; i < data.length; i++) {
-      const t = i / sampleRate;
+    for (let i = 0; i < d.length; i++) {
+      const t = i / sr;
       const trem = 0.5 + 0.5 * Math.sin(t * 2 * Math.PI * 6);
-      const grit = (pseudoRandom(i, 7 + channelIndex * 19) - 0.5) * 0.16 * trem;
-      data[i] += grit;
+      const grit = (pseudoRandom(i, 7 + ch * 19) - 0.5) * 0.16 * trem;
+      d[i] += grit;
     }
   }
 
-  function buildGameOver(data, sampleRate, channelIndex) {
+  function buildGameOver(d, sr, ch) {
     let phase = 0;
-    for (let i = 0; i < data.length; i++) {
-      const t = i / sampleRate;
+    for (let i = 0; i < d.length; i++) {
+      const t = i / sr;
       const sweep = 160 - 120 * (t / 3.3);
       const freq = clamp(sweep, 32, 220);
-      phase += (2 * Math.PI * freq) / sampleRate;
+      phase += (2 * Math.PI * freq) / sr;
       const env = Math.pow(Math.max(0, 1 - t / 3.3), 1.3);
       let sample = 0.6 * Math.sin(phase);
-      sample += 0.25 * Math.sin(phase * 0.5 + channelIndex * 0.4);
-      const rumble = (pseudoRandom(i, 31 + channelIndex * 9) - 0.5) * 0.35 * env;
-      data[i] = sample * env + rumble;
+      sample += 0.25 * Math.sin(phase * 0.5 + ch * 0.4);
+      const rumble = (pseudoRandom(i, 31 + ch * 9) - 0.5) * 0.35 * env;
+      d[i] = sample * env + rumble;
     }
   }
 
-  function buildVictory(data, sampleRate, channelIndex) {
+  function buildVictory(d, sr, ch) {
     const tones = [
       { start: 0.0, dur: 0.45, freq: 196, amp: 0.42 },
       { start: 0.22, dur: 0.55, freq: 247, amp: 0.4 },
-      { start: 0.45, dur: 0.7, freq: 294, amp: 0.46 },
-      { start: 0.9, dur: 0.9, freq: 392, amp: 0.48 },
-      { start: 1.4, dur: 1.1, freq: 523, amp: 0.42 },
+      { start: 0.45, dur: 0.7,  freq: 294, amp: 0.46 },
+      { start: 0.9,  dur: 0.9,  freq: 392, amp: 0.48 },
+      { start: 1.4,  dur: 1.1,  freq: 523, amp: 0.42 },
     ];
     tones.forEach((tone, idx) => {
-      addBlip(data, sampleRate, {
-        start: tone.start,
-        dur: tone.dur,
-        freq: (ratio) => tone.freq * (1 + 0.015 * Math.sin(ratio * Math.PI * 6 + channelIndex * 0.5)),
-        amp: tone.amp,
-        envPower: 1.05,
+      addBlip(d, sr, {
+        start: tone.start, dur: tone.dur,
+        freq: (r) => tone.freq * (1 + 0.015 * Math.sin(r * Math.PI * 6 + ch * 0.5)),
+        amp: tone.amp, envPower: 1.05,
         harmonics: idx % 2 === 0 ? [0.18, 0.06] : [0.12],
-        phaseOffset: channelIndex * 0.15,
+        phaseOffset: ch * 0.15,
       });
     });
 
-    for (let i = 0; i < data.length; i++) {
-      const t = i / sampleRate;
-      const shimmer = Math.sin(2 * Math.PI * (680 + channelIndex * 12) * t);
+    for (let i = 0; i < d.length; i++) {
+      const t = i / sr;
+      const shimmer = Math.sin(2 * Math.PI * (680 + ch * 12) * t);
       const env = Math.pow(Math.max(0, 1 - t / 3.2), 1.6);
-      const spark = (pseudoRandom(i, 101 + channelIndex * 3) - 0.5) * 0.18 * env;
-      data[i] += shimmer * env * 0.08 + spark;
+      const spark = (pseudoRandom(i, 101 + ch * 3) - 0.5) * 0.18 * env;
+      d[i] += shimmer * env * 0.08 + spark;
     }
   }
 
-  // --- Lightweight SFX builders ---
-  function buildPickup(data, sampleRate, channelIndex){
+  // ---- Lightweight SFX builders (these were missing before) ----
+  function buildPickup(d, sr, ch){
     const tones = [
       { start:0.00, dur:0.10, f0:660, f1:880, amp:0.5 },
       { start:0.11, dur:0.10, f0:990, f1:1320, amp:0.45 },
     ];
     tones.forEach(t=>{
-      addBlip(data, sampleRate, {
+      addBlip(d, sr, {
         start:t.start, dur:t.dur, amp:t.amp,
         freq:(r)=> t.f0 + (t.f1 - t.f0) * r,
         envPower:1.2, harmonics:[0.15]
@@ -319,13 +299,13 @@ playGameOver() {},
     });
   }
 
-  function buildHeal(data, sampleRate, channelIndex){
+  function buildHeal(d, sr, ch){
     const tones=[
       { start:0.00, dur:0.14, f0:420, f1:560, amp:0.42 },
       { start:0.10, dur:0.18, f0:560, f1:700, amp:0.38 },
     ];
     tones.forEach(t=>{
-      addBlip(data, sampleRate, {
+      addBlip(d, sr, {
         start:t.start, dur:t.dur, amp:t.amp,
         freq:(r)=> t.f0 + (t.f1 - t.f0) * r,
         envPower:1.3, harmonics:[0.1]
@@ -333,35 +313,50 @@ playGameOver() {},
     });
   }
 
-  function buildMine(data, sampleRate, channelIndex){
-    // Low thump + noise burst
-    addBlip(data, sampleRate, { start:0.00, dur:0.35, freq:(r)=> 200*(1-r)+60, amp:0.7, envPower:1.2, harmonics:[0.25,0.12] });
-    for(let i=0;i<data.length;i++){
-      const t = i / sampleRate;
+  function buildMine(d, sr, ch){
+    addBlip(d, sr, { start:0.00, dur:0.35, freq:(r)=> 200*(1-r)+60, amp:0.7, envPower:1.2, harmonics:[0.25,0.12] });
+    for(let i=0;i<d.length;i++){
+      const t = i / sr;
       const env = Math.pow(Math.max(0, 1 - t/0.45), 1.1);
-      const noise = (pseudoRandom(i, 77 + channelIndex*3)-0.5) * 0.9 * env;
-      data[i] += noise;
+      const noise = (pseudoRandom(i, 77 + ch*3)-0.5) * 0.9 * env;
+      d[i] += noise;
     }
   }
 
-  function buildSanityTick(data, sampleRate, channelIndex){
-    addBlip(data, sampleRate, { start:0.00, dur:0.06, freq:880, amp:0.35, envPower:1.6, harmonics:[0.1] });
-    addBlip(data, sampleRate, { start:0.05, dur:0.05, freq:660, amp:0.28, envPower:1.5 });
+  function buildSanityTick(d, sr, ch){
+    addBlip(d, sr, { start:0.00, dur:0.06, freq:880, amp:0.35, envPower:1.6, harmonics:[0.1] });
+    addBlip(d, sr, { start:0.05, dur:0.05, freq:660, amp:0.28, envPower:1.5 });
   }
 
+  // NEW: LevelUp / Door-cross SFX
+  function buildLevelUp(d, sr, ch) {
+    addBlip(d, sr, { start: 0.00, dur: 0.18, freq: (r) => 220 + 880 * r, amp: 0.5, envPower: 1.3, harmonics: [0.18, 0.08] });
+    addBlip(d, sr, { start: 0.04, dur: 0.08, freq: 150, amp: 0.35, envPower: 1.8 });
+    addBlip(d, sr, { start: 0.12, dur: 0.20, freq: (r) => 880 + 220 * Math.sin(r * Math.PI), amp: 0.38, envPower: 1.2, harmonics: [0.15] });
+    for (let i = 0; i < d.length; i++) {
+      const t = i / sr;
+      const env = Math.pow(Math.max(0, 1 - t / 0.35), 1.5);
+      const spark = (pseudoRandom(i, 333 + ch) - 0.5) * 0.08 * env;
+      d[i] += spark;
+    }
+  }
+
+  // ---------- Spec map ----------
   const SOUND_SPECS = {
-    intro: { duration: 2.7, edgeFade: 0.03, target: 0.82, builder: buildIntro },
-    deployment: { duration: 2.0, edgeFade: 0.02, target: 0.86, builder: buildDeployment },
-    background: { duration: 8.0, edgeFade: 0.05, target: 0.52, loop: true, builder: buildBackground },
-    sanity: { duration: 1.8, edgeFade: 0.025, target: 0.88, builder: buildSanity },
-    gameover: { duration: 3.4, edgeFade: 0.04, target: 0.85, builder: buildGameOver },
-    victory: { duration: 3.2, edgeFade: 0.03, target: 0.9, builder: buildVictory },
-    pickup: { duration: 0.28, edgeFade: 0.01, target: 0.9, builder: buildPickup },
-    heal:   { duration: 0.30, edgeFade: 0.01, target: 0.9, builder: buildHeal },
-    mine:   { duration: 0.50, edgeFade: 0.02, target: 0.9, builder: buildMine },
-    sanity_tick: { duration: 0.12, edgeFade: 0.01, target: 0.9, builder: buildSanityTick },
+    intro:       { duration: 2.7, edgeFade: 0.03, target: 0.82, builder: buildIntro },
+    deployment:  { duration: 2.0, edgeFade: 0.02, target: 0.86, builder: buildDeployment },
+    background:  { duration: 8.0, edgeFade: 0.05, target: 0.52, loop: true, builder: buildBackground },
+    sanity:      { duration: 1.8, edgeFade: 0.025, target: 0.88, builder: buildSanity },
+    gameover:    { duration: 3.4, edgeFade: 0.04, target: 0.85, builder: buildGameOver },
+    victory:     { duration: 3.2, edgeFade: 0.03, target: 0.90, builder: buildVictory },
+    pickup:      { duration: 0.28, edgeFade: 0.01, target: 0.90, builder: buildPickup },
+    heal:        { duration: 0.30, edgeFade: 0.01, target: 0.90, builder: buildHeal },
+    mine:        { duration: 0.50, edgeFade: 0.02, target: 0.90, builder: buildMine },
+    sanity_tick: { duration: 0.12, edgeFade: 0.01, target: 0.90, builder: buildSanityTick },
+    levelup:     { duration: 0.40, edgeFade: 0.02, target: 0.90, builder: buildLevelUp }
   };
 
+  // ---------- Audio Manager ----------
   class AudioManager {
     constructor() {
       this.ctx = null;
@@ -372,7 +367,7 @@ playGameOver() {},
       this.fileBuffers = new GMap();
       this.loops = new GMap();
       this.loopIntents = Object.create(null);
-      this.oneShots = new Set();
+      this.oneShots = new Set();           // {source, gain}
       this.pendingLoops = new GSet();
       this.bufferPromises = new GMap();
       this.masterVolume = 0.38;
@@ -381,6 +376,8 @@ playGameOver() {},
       this.files = { ...DEFAULT_FILE_MAP };
       this.loopSeed = 0;
       this.userActivated = false;
+      this._autoBgOpts = null;             // optional arming for first-gesture bg
+
       this._applyFileOverrides(window.KomAudioFiles);
       this._bindUnlock();
     }
@@ -392,7 +389,7 @@ playGameOver() {},
       if (!(this.pendingLoops instanceof GSet)) this.pendingLoops = new GSet();
       if (!(this.bufferPromises instanceof GMap)) this.bufferPromises = new GMap();
       if (!this.loopIntents || typeof this.loopIntents !== 'object') this.loopIntents = Object.create(null);
-      this.oneShots = new Set();
+      if (!(this.oneShots instanceof Set)) this.oneShots = new Set();
     }
 
     _applyFileOverrides(map) {
@@ -420,6 +417,11 @@ playGameOver() {},
         if (this.userActivated) return;
         this.userActivated = true;
         this.resume(true);
+        // If armed, start bg immediately on first gesture
+        if (this._autoBgOpts) {
+          this.startBackground(this._autoBgOpts);
+          this._autoBgOpts = null;
+        }
       };
       if (!this.ready) {
         console.info('KomAudio: waiting for first user interaction to enable audio playback.');
@@ -507,7 +509,7 @@ playGameOver() {},
       if (!this.fileBuffers || typeof this.fileBuffers.has !== 'function') {
         this.fileBuffers = new GMap();
       }
-      
+
       const filePath = this.files[name];
       if (filePath) {
         const key = filePath;
@@ -576,9 +578,11 @@ playGameOver() {},
         const spec = SOUND_SPECS[name] || {};
         const source = ctx.createBufferSource();
         source.buffer = buffer;
+
         const wantsLoop = opts.loop ?? spec.loop ?? false;
-        source.loop = wantsLoop;
+        source.loop = wantsLoop || false;
         if (opts.loop && spec?.loop === false) source.loop = true;
+
         const gainNode = ctx.createGain();
         const level = opts.gain ?? spec.gain ?? 1;
         gainNode.gain.value = level;
@@ -589,49 +593,97 @@ playGameOver() {},
           gainNode.gain.linearRampToValueAtTime(level, ctx.currentTime + opts.fadeIn);
         }
 
+        const startAt = (typeof opts.startAt === 'number') ? opts.startAt : 0;
+
         if (source.loop) {
+          // ---- LOOP PATH
           const intent = opts._intent ?? null;
           const storedIntent = this.loopIntents ? this.loopIntents[name] : undefined;
+
           if (intent && storedIntent !== intent) {
-            if (intent) this.pendingLoops.delete(name);
             source.disconnect();
             return;
           }
           if (this.loops.has(name)) {
-            if (intent) this.pendingLoops.delete(name);
             source.disconnect();
             return;
           }
-          this.oneShots.add(source);
-          source.start(0, opts.offset ?? 0);
+
+          source.start(startAt, opts.offset ?? 0);
           this.loops.set(name, { source, gain: gainNode });
+
           if (intent) {
             this.pendingLoops.delete(name);
             if (this.loopIntents) this.loopIntents[name] = intent;
           }
         } else {
+          // ---- ONE-SHOT PATH
+          const handle = { source, gain: gainNode };
           const release = opts.fadeOut ?? 0;
+
           if (release > 0) {
-            const end = ctx.currentTime + buffer.duration;
-            gainNode.gain.setValueAtTime(level, Math.max(ctx.currentTime, end - release));
+            const end = (startAt || ctx.currentTime) + buffer.duration;
+            gainNode.gain.setValueAtTime(level, Math.max(startAt || ctx.currentTime, end - release));
             gainNode.gain.linearRampToValueAtTime(0.0001, end);
           }
+
           try {
-            this.oneShots.add(source);
-          source.start();
+            this.oneShots.add(handle);
+            if (startAt > 0) source.start(startAt);
+            else source.start();
           } catch (startErr) {
             console.warn(`KomAudio: failed to start '${name}'`, startErr);
             gainNode.disconnect();
             return;
           }
+
           source.onended = () => {
-            try{ this.oneShots.delete(source); }catch(e){}
+            try { this.oneShots.delete(handle); } catch(e){}
             gainNode.disconnect();
           };
         }
       }).catch((err) => {
         console.error(`KomAudio: failed to play '${name}'`, err);
       });
+    }
+
+    stopOneShots(opts = {}) {
+      const fade = opts.fade ?? (opts.immediate ? 0 : 0.25);
+      const ctx = this.ctx;
+      for (const handle of Array.from(this.oneShots)) {
+        try {
+          if (fade > 0 && ctx && handle?.gain && handle?.source) {
+            handle.gain.gain.cancelScheduledValues(ctx.currentTime);
+            handle.gain.gain.setValueAtTime(handle.gain.gain.value, ctx.currentTime);
+            handle.gain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + fade);
+            handle.source.stop(ctx.currentTime + fade + 0.02);
+          } else if (handle?.source) {
+            handle.source.stop();
+          }
+        } catch(e){}
+        this.oneShots.delete(handle);
+      }
+    }
+
+    hardStopAll(opts = {}) {
+      const fade = opts.fade ?? (opts.immediate ? 0 : 0.12);
+      const ctx = this.ctx;
+      for (const [name, handle] of Array.from(this.loops)) {
+        try {
+          if (fade > 0 && ctx && handle?.gain && handle?.source) {
+            handle.gain.gain.cancelScheduledValues(ctx.currentTime);
+            handle.gain.gain.setValueAtTime(handle.gain.gain.value, ctx.currentTime);
+            handle.gain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + fade);
+            handle.source.stop(ctx.currentTime + fade + 0.02);
+          } else if (handle?.source) {
+            handle.source.stop();
+          }
+        } catch(e){}
+        this.loops.delete(name);
+      }
+      this.pendingLoops.clear?.();
+      this.loopIntents = Object.create(null);
+      this.stopOneShots({ fade });
     }
 
     stopLoop(name, opts = {}) {
@@ -652,28 +704,39 @@ playGameOver() {},
       }
     }
 
-    playIntro() {
-      this.play('intro', { fadeOut: 0.4 });
+    stopBackground(opts = {}) {
+      this.stopLoop('background', opts);
+      if (this.loopIntents) delete this.loopIntents.background;
     }
 
-    playDeployment() {
-      this.play('deployment', { fadeOut: 0.3 });
-    }
-
-    startBackground() {
+    startBackground(opts = {}) {
       this._ensureStores();
-      if (this.loops.has('background') || this.pendingLoops.has('background')) {
-        return;
-      }
+      // fade out any lingering one-shots like gameover/victory before bg starts
+      this.stopOneShots({ fade: 0.25 });
+
+      if (this.loops.has('background') || this.pendingLoops.has('background')) return;
+
       const intent = ++this.loopSeed;
       this.pendingLoops.add('background');
       if (this.loopIntents) this.loopIntents.background = intent;
-      this.play('background', { loop: true, gain: 0.65, fadeIn: 1.4, _intent: intent });
+
+      const gain   = opts.gain   ?? 0.65;
+      const fadeIn = opts.fadeIn ?? 1.4;
+
+      this.play('background', { loop: true, gain, fadeIn, _intent: intent });
     }
 
-    stopBackground() {
-      this.stopLoop('background');
+    // (Optional) Arm bg to start on first user gesture
+    armAutoBackground(opts = {}) {
+      this._autoBgOpts = opts || {};
+      if (this.ready && this.ensureContext()) {
+        this.startBackground(this._autoBgOpts);
+        this._autoBgOpts = null;
+      }
     }
+
+    playIntro()       { this.play('intro',      { fadeOut: 0.4 }); }
+    playDeployment()  { this.play('deployment', { fadeOut: 0.3 }); }
 
     playSanityLow() {
       const ctx = this.ensureContext();
@@ -685,21 +748,27 @@ playGameOver() {},
     }
 
     playGameOver() {
-      this.stopBackground();
-      this.play('gameover', { fadeOut: 0.5 });
+      const ctx = this.ensureContext(true);
+      this.hardStopAll({ immediate: true });
+      const t = ctx ? ctx.currentTime + 0.01 : 0;
+      this.play('gameover', { fadeOut: 0.5, startAt: t });
     }
 
     playVictory() {
-      this.stopBackground();
-      this.play('victory', { fadeOut: 0.6 });
+      const ctx = this.ensureContext(true);
+      this.hardStopAll({ immediate: true });
+      const t = ctx ? ctx.currentTime + 0.01 : 0;
+      this.play('victory', { fadeOut: 0.6, startAt: t });
     }
 
-    // ---- New SFX API ----
-    playPickup(){ this.play('pickup'); }
-    playHeal(){ this.play('heal'); }
-    playMine(){ this.play('mine', { fadeOut: 0.12 }); }
+    // ---- SFX API ----
+    playPickup()    { this.play('pickup'); }
+    playHeal()      { this.play('heal'); }
+    playMine()      { this.play('mine', { fadeOut: 0.12 }); }
     playSanityTick(){ this.play('sanity_tick'); }
+    playLevelUp()   { this.play('levelup'); }
   }
 
   window.KomAudio = new AudioManager();
 })();
+
