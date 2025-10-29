@@ -985,6 +985,7 @@ class Game{
   }
   
   resetLevel(){
+    if (window.KomAudio) { window.KomAudio.stopBackground({ immediate:true }); }
     const spec=LEVELS[this.levelIndex];
     this.levelTicks = 0;
     this.rainSeed = Math.random()*1000;
@@ -1560,7 +1561,10 @@ ctx.translate(-camX, -camY);
 
   startMelt(){
     if(window.KomAudio && this.state!=='melting' && this.state!=='gameover'){
-      try{ window.KomAudio.playGameOver(); }catch(e){ console.warn('KomAudio playGameOver failed', e); }
+    try{
+    window.KomAudio.stopBackground({ fade:true });
+    window.KomAudio.playGameOver();
+    }catch(e){ console.warn('KomAudio gameover audio failed', e); }
     }
     const w=this.canvas.width, h=this.canvas.height;
     const off=document.createElement('canvas'); off.width=w; off.height=h; const octx=off.getContext('2d');
@@ -1628,6 +1632,7 @@ ctx.translate(-camX, -camY);
     if(this.sanity<=35){
       if(!this.sanityWarned){
         if(window.KomAudio){ window.KomAudio.playSanityLow(); }
+        this.updateHUD();
         this.sanityWarned = true;
       }
     } else if(this.sanityWarned && this.sanity>55){
@@ -1674,6 +1679,7 @@ ctx.translate(-camX, -camY);
       return;
     }
 
+            this.updateHUD();
       this.render();
     requestAnimationFrame(this.loop.bind(this));
   }
