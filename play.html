@@ -984,7 +984,7 @@ class Game{
   }
   
   resetLevel(){
-    if (window.KomAudio) { window.KomAudio.stopBackground({ immediate:true }); }
+    if (window.KomAudio) { try{ window.KomAudio.hardStopAll({ immediate:true }); }catch(e){} }
     const spec=LEVELS[this.levelIndex];
     this.levelTicks = 0;
     this.rainSeed = Math.random()*1000;

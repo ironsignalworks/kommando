@@ -15,7 +15,37 @@
     playIntro() {},
     playDeployment() {},
     playSanityLow() {},
-    playGameOver() {},
+    
+    hardStopAll(opts = {}){
+      this._ensureStores();
+      const fade = opts.fade ?? (opts.immediate ? 0 : 0.12);
+      const ctx = this.ctx;
+      try{
+        for(const [name,handle] of this.loops){
+          try{
+            if (fade>0 && ctx){
+              handle.gain.gain.cancelScheduledValues(ctx.currentTime);
+              handle.gain.gain.setValueAtTime(handle.gain.gain.value, ctx.currentTime);
+              handle.gain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + fade);
+              handle.source.stop(ctx.currentTime + fade + 0.02);
+            }else{
+              handle.source.stop();
+            }
+          }catch(e){}
+        }
+      }finally{
+        this.loops.clear();
+        try{ this.pendingLoops.clear(); }catch(e){}
+        this.loopIntents = Object.create(null);
+      }
+      try{
+        for(const s of Array.from(this.oneShots||[])){
+          try{ s.stop(0); }catch(e){}
+          this.oneShots.delete(s);
+        }
+      }catch(e){}
+    }
+playGameOver() {},
     playVictory() {},
     startBackground() {},
     stopBackground() {},
@@ -25,6 +55,7 @@
     playHeal() {},
     playMine() {},
     playSanityTick() {},
+    hardStopAll() {}
   };
 
   // File names map (override via window.KomAudioFiles before this script loads)
@@ -341,6 +372,7 @@
       this.fileBuffers = new GMap();
       this.loops = new GMap();
       this.loopIntents = Object.create(null);
+      this.oneShots = new Set();
       this.pendingLoops = new GSet();
       this.bufferPromises = new GMap();
       this.masterVolume = 0.38;
@@ -360,6 +392,7 @@
       if (!(this.pendingLoops instanceof GSet)) this.pendingLoops = new GSet();
       if (!(this.bufferPromises instanceof GMap)) this.bufferPromises = new GMap();
       if (!this.loopIntents || typeof this.loopIntents !== 'object') this.loopIntents = Object.create(null);
+      this.oneShots = new Set();
     }
 
     _applyFileOverrides(map) {
@@ -569,6 +602,7 @@
             source.disconnect();
             return;
           }
+          this.oneShots.add(source);
           source.start(0, opts.offset ?? 0);
           this.loops.set(name, { source, gain: gainNode });
           if (intent) {
@@ -583,13 +617,15 @@
             gainNode.gain.linearRampToValueAtTime(0.0001, end);
           }
           try {
-            source.start();
+            this.oneShots.add(source);
+          source.start();
           } catch (startErr) {
             console.warn(`KomAudio: failed to start '${name}'`, startErr);
             gainNode.disconnect();
             return;
           }
           source.onended = () => {
+            try{ this.oneShots.delete(source); }catch(e){}
             gainNode.disconnect();
           };
         }
