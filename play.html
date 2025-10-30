@@ -54,14 +54,14 @@
      ROOT THEME & GLOBAL BASE
      ========================= */
   :root{
-    --bg:#000; 
-    --ink:#e4e7ea; 
-    --inkSoft:rgba(228,231,234,.85);
-    --hud:#0b0f14; 
-    --hud2:#0a0e13;
-    --hudBorder:#1a1f25;
-    --hudHi:rgba(255,255,200,.05);
-    --hudLo:rgba(0,0,0,.45);
+    --bg:#051307;
+    --ink:#d1d725;
+    --ink-soft:rgba(209,215,37,.78);
+    --hud:#0c1707;
+    --hud2:#081106;
+    --hud-border:#1d2c19;
+    --hud-hi:rgba(255,255,200,.05);
+    --hud-lo:rgba(0,0,0,.45);
     --accent:#7efc6b; 
     --danger:#ff5050;
   }
@@ -81,9 +81,10 @@
   .app{
     height:100vh;
     display:grid;
-    grid-template-rows: 1fr auto; /* game view + HUD */
+    grid-template-rows: 1fr auto auto; /* view + HUD + footer */
     background:var(--bg);
-  }
+}
+
   
   /* =========================
      GAME VIEW (CANVAS WRAP)
@@ -219,7 +220,20 @@
   .modal-sheet h2{ margin:0 0 8px; font-size:20px; letter-spacing:.5px; }
   .modal-sheet ul{ margin:0 0 12px 18px; padding:0; }
   .modal-sheet li{ margin:6px 0; }
-  
+  .instr-list{ list-style:none; margin:0 0 12px 0; padding:0; }
+  .instr-list li{ margin:8px 0; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .instr-list li > b{ margin-right:4px; }
+  .instr-icon{
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  vertical-align: -3px;
+  background: transparent;      /* was #000 causing solid squares */
+  border: 1px solid var(--hudBorder);
+  border-radius: 4px;
+  }
+
+  .instr-icon.small{ vertical-align:-3px; }
+
   /* =========================
      TOUCH JOYSTICK (MOBILE)
      ========================= */
@@ -256,6 +270,51 @@
     .kbd{ font-size:12px; }
     .hud-btn{ padding:4px 8px; }
   }
+  .siteFooter{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:8px 12px;
+  background:linear-gradient(to bottom, var(--hud), var(--hud2));
+  border-top:1px solid var(--hudBorder);
+  box-shadow: inset 0 1px 0 var(--hudHi), 0 -2px 0 var(--hudLo);
+  color:var(--inkSoft);
+  gap:10px;
+  min-height:44px;
+}
+
+.siteFooter a{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  color:inherit;
+  text-decoration:none;
+  filter:brightness(0.98);
+}
+
+.siteFooter a:hover{ filter:brightness(1.06); }
+
+.siteFooter img{
+  width:22px; height:22px;
+  display:block;
+  image-rendering: pixelated;
+  opacity:0.9;
+}
+
+.siteFooter span{
+  font-size:16px; /* VT323 looks good a bit smaller here */
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+/* Tighten slightly on small screens */
+@media (max-width: 900px){
+  .siteFooter{ padding:6px 10px; min-height:40px; }
+  .siteFooter span{ font-size:14px; }
+  .siteFooter img{ width:20px; height:20px; }
+}
+
   </style>
   </head>
   <body>
@@ -269,6 +328,8 @@
       <div class="hud-bottom">
         <canvas class="logo" id="hudLogo"></canvas>
         <div class="sep"></div>
+
+       
     
         <div class="hud-col meta">
           <div class="hud-row">
@@ -279,7 +340,7 @@
             <span>Level:</span><span id="levelName" style="min-width:160px">&#8212;</span>
           </div>
         </div>
-    
+        
         <div class="sep"></div>
     
         <div class="hud-col stats">
@@ -296,7 +357,7 @@
             <span>Seeds</span><span id="seedsCount">0</span>
           </div>
         </div>
-    
+             
         <div class="sep"></div>
     
         <div class="hud-col controls">
@@ -308,6 +369,15 @@
             Instructions
           </button>
         </div>
+
+        <footer class="siteFooter" aria-label="Brand">
+          <a href="https://ironsignalworks.com" target="_blank" rel="noopener"
+             aria-label="Visit Iron Signal Works">
+            <img src="logo.png" alt="" />
+            <span>Iron Signal Works — Cold Code, Hot Circuits.</span>
+          </a>
+        </footer>
+        
       </div>
     </div>
     
@@ -322,19 +392,43 @@
     <div id="instructionsModal" role="dialog" aria-modal="true" aria-labelledby="instrTitle" class="modal hidden">
       <div class="modal-sheet">
         <h2 id="instrTitle">How to Play</h2>
-        <ul>
-          <li><b>Move:</b> WASD or Arrow Keys (mobile: on-screen joystick)</li>
-          <li>Collect all memory fragments to unlock the Exit</li>
-          <li>Sanity drains over time — fragments (+) and seeds (+++) restore it</li>
-          <li>Drones patrol and will chase if they see you</li>
-          <li>Palm trees provide camouflage from drones</li>
-          <li>Mines hurt sanity and can scramble your controls</li>
-          <li>Ghosts (Paranoia) disturb sanity and visibility</li>
-        </ul>
+        <ul class="instr-list">
+          <ul class="instr-list">
+            <li>
+              <canvas class="instr-icon" width="22" height="22" data-sprite="commando" aria-hidden="true"></canvas>
+              <b>Move:</b> WASD or Arrow Keys (mobile: on-screen joystick)
+            </li>
+            <li>
+              Collect all memory fragments to unlock the Exit
+            </li>
+            <li>
+              Sanity drains over time — fragments and seeds restore it
+            </li>
+            <li>
+              <canvas class="instr-icon" width="20" height="20" data-sprite="enemy" aria-hidden="true"></canvas>
+              Drones patrol and will chase if they see you
+            </li>
+            <li>
+              <canvas class="instr-icon" width="20" height="20" data-sprite="palm" aria-hidden="true"></canvas>
+              Palm trees provide camouflage from drones
+            </li>
+            <li>
+              <canvas class="instr-icon" width="20" height="20" data-sprite="mine" aria-hidden="true"></canvas>
+              Mines hurt sanity and can scramble your controls
+            </li>
+            <li>
+              <canvas class="instr-icon" width="20" height="20" data-sprite="ghost" aria-hidden="true"></canvas>
+              Ghosts disturb sanity and visibility
+            </li>
+          </ul>
+          
+        
         <button id="btnCloseInstructions" class="hud-btn">Close</button>
       </div>
       <div class="modal-backdrop"></div>
     </div>
+
+    
     
     <!-- Minimal wiring for the modal (idempotent) -->
     <script>
@@ -474,6 +568,64 @@
         }
       });
     </script>
+    <script>
+      (function instrIcons(){
+        // Draw one sprite into a canvas (HiDPI-safe)
+        function paint(canvas, name){
+          const ctx = canvas.getContext('2d');
+          const cssW = +canvas.getAttribute('width')  || 20;
+          const cssH = +canvas.getAttribute('height') || 20;
+          const dpr = Math.max(1, window.devicePixelRatio || 1);
+      
+          canvas.width  = Math.round(cssW * dpr);
+          canvas.height = Math.round(cssH * dpr);
+          canvas.style.width  = cssW + 'px';
+          canvas.style.height = cssH + 'px';
+      
+          ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+          ctx.imageSmoothingEnabled = false;
+          ctx.clearRect(0, 0, cssW, cssH);
+      
+          // Use the in-game drawer; keep aspect like tiles do
+          if (typeof window.drawSprite === 'function') {
+            const nameFixed = name || canvas.getAttribute('data-sprite');
+            window.drawSprite(ctx, nameFixed, 0, 0, cssW, cssH);
+          }
+        }
+      
+        function renderAll(){
+          document.querySelectorAll('canvas.instr-icon[data-sprite]').forEach(c=>{
+            paint(c, c.getAttribute('data-sprite'));
+          });
+        }
+      
+        // Wait until SPR + drawSprite exist, then render
+        function renderAllWhenReady(tries=0){
+          if (window.SPR && Object.keys(SPR).length && typeof window.drawSprite === 'function'){
+            renderAll();
+          } else if (tries < 120) { // ~2s worst case @ 60fps
+            requestAnimationFrame(()=>renderAllWhenReady(tries+1));
+          }
+        }
+      
+        // Hook modal open to (re)render
+        document.getElementById('btnInstructions')?.addEventListener('click', renderAllWhenReady);
+      
+        // Also run once after DOM is ready
+        if (document.readyState === 'loading') {
+          document.addEventListener('DOMContentLoaded', renderAllWhenReady, { once:true });
+        } else {
+          renderAllWhenReady();
+        }
+      
+        // Keep crisp on DPR/size changes
+        window.addEventListener('resize', renderAllWhenReady, { passive:true });
+      
+        // If you ever dispatch a “sprites ready” event, listen for it too:
+        window.addEventListener('kom:sprites-ready', renderAll);
+      })();
+      </script>  
+      
     <script>
   /**********************
    * CONFIG & CONSTANTS *
