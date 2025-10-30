@@ -50,15 +50,45 @@
     playVictory() {},
     startBackground() {},
     stopBackground() {},
-    configureFiles() {},
-    armAutoBackground() {},
     stopOneShots() {},
+
+    // Files mapping (noop here but kept for API parity)
+    files: {},
+    configureFiles(map){
+      // Merge defaults with overrides; accept global window.KomAudioFiles if map not provided
+      const DEFAULT_FILE_MAP = {
+        intro: 'audio/intro.mp3',
+        deployment: 'audio/deployment.mp3',
+        background: 'audio/background_loop.mp3',
+        sanity: 'audio/sanity_low.mp3',
+        gameover: 'audio/gameover.mp3',
+        victory:  'audio/victory.mp3',
+        pickup:      'audio/sfx/pickup.mp3',
+        heal:        'audio/sfx/heal.mp3',
+        mine:        'audio/sfx/mine.mp3',
+        sanity_tick: 'audio/sfx/sanity_tick.mp3',
+        levelup:     'audio/sfx/levelup.mp3',
+      };
+      const globalMap = (typeof window !== 'undefined' && window.KomAudioFiles && typeof window.KomAudioFiles === 'object')
+        ? window.KomAudioFiles
+        : null;
+      const src = (map && typeof map === 'object') ? map : globalMap;
+      this.files = { ...DEFAULT_FILE_MAP };
+      if (src){
+        for (const [k,v] of Object.entries(src)){
+          if (v === null || v === false) delete this.files[k];
+          else if (typeof v === 'string' && v.trim()) this.files[k] = v.trim();
+        }
+      }
+    },
 
     // SFX no-ops
     playPickup() {},
     playHeal() {},
     playMine() {},
     playSanityTick() {},
+    playLevelUp() {},
+    armAutoBackground() {},
   };
 
   if (!AudioCtor) { window.KomAudio = fallback; return; }
@@ -187,13 +217,21 @@
 
     configureFiles(map){
       this._ensureStores();
+      // Start with defaults
       this.files = {...DEFAULT_FILE_MAP};
-      if (map && typeof map === 'object'){
-        for (const [k,v] of Object.entries(map)){
+      // Prefer explicit object param; otherwise, look for global window.KomAudioFiles (as used by index.html)
+      const globalMap = (typeof window !== 'undefined' && window.KomAudioFiles && typeof window.KomAudioFiles === 'object')
+        ? window.KomAudioFiles
+        : null;
+      const src = (map && typeof map === 'object') ? map : globalMap;
+
+      if (src){
+        for (const [k,v] of Object.entries(src)){
           if (v === null || v === false) delete this.files[k];
           else if (typeof v === 'string' && v.trim()) this.files[k] = v.trim();
         }
       }
+      // Clear any previously decoded file buffers so changes take effect immediately
       this.fileBuffers.clear();
       this.bufferPromises.clear();
     },
@@ -458,6 +496,10 @@
       this._autoBgOpts = { ...opts };
     },
   };
+
+  // Initialize file map with global overrides if present (so audio works even if
+  // configureFiles() is never called explicitly)
+  try { A.configureFiles(); } catch(e){}
 
   window.KomAudio = A;
   A._bindUnlock();

@@ -57,13 +57,13 @@
       --accent:#7efc6b;
 
       /* timing */
-      --spawn-ms: 3600;     /* drip build (longer for visible drips) */
-      --sim-ms:   4200;     /* build end -> fade skull + paint (extend for visible drips) */
+      --spawn-ms: 3000;     /* drip build (longer for visible drips) */
+      --sim-ms:   3200;     /* build end -> fade skull + paint (extend for visible drips) */
       --ansi-ms:  1600;     /* skull type-in speed */
-      --neon-ms:  1800;     /* neon shower duration after reveal */
+      --neon-ms:  2800;     /* neon shower duration after reveal */
 
       /* ink look (light) */
-      --max-particles: 400;
+      --max-particles: 1400;
       --gutter: 24;
 
       --fade-alpha: 0.010;  /* build-phase decay inside mask */
@@ -195,6 +195,42 @@
       #startBtn { bottom: clamp(6px, 5svh, 12%); }
       :root { --max-particles: 300; }
     }
+    .siteFooter{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  padding:8px 12px;
+  color:var(--ink-soft);
+  gap:10px;
+  min-height:44px;
+}
+.siteFooter a{
+  display:inline-flex;
+  align-items:center;
+  gap:10px;
+  color:inherit;
+  text-decoration:none;
+  filter:brightness(0.98);
+}
+.siteFooter a:hover{ filter:brightness(1.06); }
+.siteFooter img{
+  width:22px; height:22px;
+  display:block;
+  image-rendering: pixelated;
+  opacity:0.9;
+}
+.siteFooter span{
+  font-size:16px; /* VT323 reads better a touch smaller here */
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+/* Tighten slightly on small screens */
+@media (max-width: 900px){
+  .siteFooter{ padding:6px 10px; min-height:40px; }
+  .siteFooter span{ font-size:14px; }
+  .siteFooter img{ width:20px; height:20px; }
+}
   </style>
 </head>
 <body>
@@ -207,7 +243,12 @@
     <!-- CTA (gated, bottom) -->
     <a id="startBtn" href="deployment.html" aria-label="Start Game">START GAME ▸</a>
 
-    <div id="hint">SPACE — replay intro &nbsp;&nbsp;•&nbsp;&nbsp; ENTER — start (when ready)</div>
+    <footer class="siteFooter" aria-label="Brand">
+      <a href="https://ironsignalworks.com" target="_blank" rel="noopener" aria-label="Visit Iron Signal Works">
+        <img src="logo.png" alt="" />
+        <span>Iron Signal Works Presents</span>
+      </a>
+    </footer>
   </div>
 
   <!-- ASCII mask -->
