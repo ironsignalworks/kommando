@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Kommando - Fog Of War. Real-Time Caverns v0.7.0 (Chunky Sprites + Seeds)</title>
+<title>Kommando - Fog Of War. Real-Time Caverns v0.8.0</title>
 <link rel="icon" href="/favicon.ico">
 <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=VT323&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet">
 
@@ -49,565 +49,819 @@
     // background: 'audio/bg_loop_custom.mp3',
   };
 </script>
-
-<!-- Load audio system -->
-<script defer src="audio.js"></script>
-
 <style>
-/* ==== KOMMANDO LAYOUT + HUD (restore) ==== */
-:root{
-  --bg:#051307;
-  --ink:#d1d725;
-  --hud:#0c1707;
-  --hud2:#081106;
-  --hudBorder:#1d2c19;
-  --hudHi:rgba(255,255,200,.05);
-  --hudLo:rgba(0,0,0,.45);
-  --inkSoft:rgba(209,215,37,.8);
-}
-
-html, body { height:100%; }
-body{
-  margin:0;
-  background:var(--bg);
-  color:var(--ink);
-  font-family:'VT323', ui-monospace, Menlo, Consolas, monospace;
-  overflow:hidden;
-}
-
-/* App uses 2-row grid: game view and HUD */
-.app{
-  height:100vh;
-  display:grid;
-  grid-template-rows: 1fr auto;
-  background:var(--bg);
-}
-
-/* World view (canvas wrapper) */
-.view{
-  position:relative;
-  overflow:hidden;
-  background:#0a0f0a;
-}
-#screen{
-  display:block;
-  width:100%;
-  height:100%;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
-  touch-action:none; /* avoid touch scrolling */
-}
-
-/* Bottom HUD bar */
-.hud-bottom{
-  display:flex;
-  align-items:center;
-  gap:16px;
-  padding:12px 16px;
-  background:
-    linear-gradient(to bottom, var(--hud), var(--hud2));
-  border-top:2px solid var(--hudBorder);
-  box-shadow: inset 0 1px 0 var(--hudHi), 0 -2px 0 var(--hudLo);
-  min-height:92px;
-  color:var(--ink);
-}
-
-/* Logo canvas on the left */
-.hud-bottom .logo{
-  width:260px;     /* adjust if you want it smaller */
-  height:48px;
-  display:block;
-  image-rendering: pixelated;
-}
-
-/* Thin separator bars between HUD columns */
-.sep{
-  width:2px;
-  align-self:stretch;
-  background:linear-gradient(
-    to bottom,
-    rgba(255,255,200,.08),
-    rgba(0,0,0,.6)
-  );
-  border-left:1px solid rgba(255,255,200,.05);
-  border-right:1px solid rgba(0,0,0,.5);
-}
-
-/* Three main columns */
-.hud-col{
-  display:flex;
-  flex-direction:column;
-  gap:6px;
-  min-width:0;
-}
-.hud-row{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  white-space:nowrap;
-}
-
-/* Tags (e.g., build version) */
-.tag{
-  display:inline-block;
-  padding:2px 6px;
-  border:2px solid var(--hudBorder);
-  background:rgba(0,0,0,.25);
-  border-radius:4px;
-  font-size:14px;
-}
-
-/* Meter (sanity bar) */
-.meter{
-  --h:12px;
-  position:relative;
-  width:180px;
-  height:var(--h);
-  border:2px solid var(--hudBorder);
-  background:rgba(0,0,0,.35);
-  border-radius:4px;
-  overflow:hidden;
-}
-.meter i{
-  display:block;
-  height:100%;
-  background:linear-gradient(90deg, #7efc6b, #c8f35a);
-}
-
-/* Keyboard hint chips */
-.kbd{
-  display:inline-block;
-  padding:1px 6px;
-  border:2px solid var(--hudBorder);
-  background:rgba(0,0,0,.3);
-  border-radius:4px;
-}
-
-/* Make HUD wrap nicely on small screens */
-@media (max-width: 860px){
-  .hud-bottom{
-    flex-wrap:wrap;
-    row-gap:8px;
-    padding:10px;
+  /* =========================
+     ROOT THEME & GLOBAL BASE
+     ========================= */
+  :root{
+    --bg:#000; 
+    --ink:#e4e7ea; 
+    --inkSoft:rgba(228,231,234,.85);
+    --hud:#0b0f14; 
+    --hud2:#0a0e13;
+    --hudBorder:#1a1f25;
+    --hudHi:rgba(255,255,200,.05);
+    --hudLo:rgba(0,0,0,.45);
+    --accent:#7efc6b; 
+    --danger:#ff5050;
+  }
+  
+  html, body { height:100%; }
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--ink);
+    font-family:'VT323', ui-monospace, Menlo, Consolas, monospace;
+    overflow:hidden;
+  }
+  
+  /* =========================
+     APP LAYOUT
+     ========================= */
+  .app{
+    height:100vh;
+    display:grid;
+    grid-template-rows: 1fr auto; /* game view + HUD */
+    background:var(--bg);
+  }
+  
+  /* =========================
+     GAME VIEW (CANVAS WRAP)
+     ========================= */
+  .view{
+    position:relative;
+    display:grid;
+    place-items:center;
     min-height:0;
+    overflow:hidden;
+    background:#000; /* safe backdrop behind canvas */
   }
-  .hud-bottom .logo{ width:200px; height:42px; }
-  .meter{ width:140px; }
-}
-
-/* Touch joystick visibility: hidden on desktop */
-.touch-controls{ display:none; position:absolute; inset:auto 16px 16px auto; }
-.touch-controls .stick{
-  width:110px; height:110px; border-radius:50%;
-  background:rgba(0,0,0,.35); border:2px solid var(--hudBorder);
-  position:relative;
-}
-.touch-controls .nub{
-  width:46px; height:46px; border-radius:50%;
-  background:rgba(255,255,200,.1); border:2px solid var(--hudBorder);
-  position:absolute; top:32px; left:32px; transform:translate(0,0);
-}
-@media (hover:none) and (pointer:coarse){
-  .touch-controls{ display:block; }
-}
-
-/* Keep everything from grabbing scroll/zoom while playing */
-canvas, .view, .touch-controls { touch-action: none; }
-</style>
-</head>
-<body>
-  <div class="app">
-    <!-- World -->
-    <div class="view">
-      <canvas id="screen" width="960" height="576"></canvas>
-    </div>
-
-    <!-- HUD -->
-    <div class="hud-bottom">
-      <canvas class="logo" id="hudLogo"></canvas>
-      <div class="sep"></div>
-
-      <div class="hud-col meta">
-        <div class="hud-row">
-          <span style="font-size:18px">Fog Of War</span>
-          <span class="tag" id="build">v0.7.0</span>
-        </div>
-        <div class="hud-row level-row"><span>Level:</span><span id="levelName">&#8212;</span></div>
-      </div>
-
-      <div class="sep"></div>
-
-      <div class="hud-col stats">
-        <div class="hud-row">
-          <span>Sanity</span>
-          <div class="meter"><i id="sanityBar" style="width:100%"></i></div>
-          <span id="sanityPct">100%</span>
-        </div>
-        <div class="hud-row">
-          <span>Fragments</span><span id="diamonds">0/0</span>
-          <span style="opacity:.6">|</span>
-          <span>Exit</span><span id="exitState">Locked</span>
-          <span style="opacity:.6">|</span>
-          <span>Seeds</span><span id="seedsCount">0</span>
-        </div>
-      </div>
-
-      <div class="sep"></div>
-
-      <div class="hud-col controls">
-        <div class="hud-row"><span>Move</span><span class="kbd">WASD</span><span>/</span><span>Arrows</span></div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Touch joystick (hidden on desktop) -->
-  <div class="touch-controls" aria-hidden="true">
-    <div class="stick" id="stick">
-      <div class="nub" id="stickNub"></div>
-    </div>
-  </div>
-  <script defer src="./audio.js"></script>
-<script>
-/* one-time audio unlock */
-(function(){
-  const unlock = () => {
-    if (window.KomAudio && typeof window.KomAudio.resume === 'function') {
-      window.KomAudio.resume(true);
-    }
-  };
-  ['pointerdown','mousedown','touchstart'].forEach(evt => window.addEventListener(evt, unlock, { once: true, passive: true }));
-  window.addEventListener('keydown', unlock, { once: true });
-})();
-
-/* used by render() and the joystick */
-function isPortraitMobile(){
-  return window.matchMedia('(max-width: 860px) and (orientation: portrait)').matches;
-}
-/* HUD ASCII logo renderer */
-(function(){
-  const HUD_ASCII = `
-█████   ████    ███████    ██████   ██████ ██████   ██████   █████████   ██████   █████ ██████████      ███████
-▒▒███   ███▒   ███▒▒▒▒▒███ ▒▒██████ ██████ ▒▒██████ ██████   ███▒▒▒▒▒███ ▒▒██████ ▒▒███ ▒▒███▒▒▒▒███   ███▒▒▒▒▒███
- ▒███  ███    ███     ▒▒███ ▒███▒█████▒███  ▒███▒█████▒███  ▒███    ▒███  ▒███▒███ ▒███  ▒███   ▒▒███ ███     ▒▒███
- ▒███████    ▒███      ▒███ ▒███▒▒███ ▒███  ▒███▒▒███ ▒███  ▒███████████  ▒███▒▒███▒███  ▒███    ▒███▒███      ▒███
- ▒███▒▒███   ▒███      ▒███ ▒███ ▒▒▒  ▒███  ▒███ ▒▒▒  ▒███  ▒███▒▒▒▒▒███  ▒███ ▒▒██████  ▒███    ▒███▒███      ▒███
- ▒███ ▒▒███  ▒▒███     ███  ▒███      ▒███  ▒███      ▒███  ▒███    ▒███  ▒███  ▒▒█████  ▒███    ███ ▒▒███     ███
- █████ ▒▒████ ▒▒▒███████▒   █████     █████ █████     █████ █████   █████ █████  ▒▒█████ ██████████   ▒▒▒███████▒
-▒▒▒▒▒   ▒▒▒▒    ▒▒▒▒▒▒▒    ▒▒▒▒▒     ▒▒▒▒▒ ▒▒▒▒▒     ▒▒▒▒▒ ▒▒▒▒▒   ▒▒▒▒▒ ▒▒▒▒▒    ▒▒▒▒▒ ▒▒▒▒▒▒▒▒▒▒      ▒▒▒▒▒▒▒
-`;
-  const padding = 2;
-  const px = 3;
-  function renderHudLogo(){
-    const canvas = document.getElementById('hudLogo');
-    if(!canvas) return;
-    const ctx = canvas.getContext('2d');
-    const lines = HUD_ASCII.split('\n');
-    const rows = lines.length;
-    const cols = Math.max(...lines.map(l => l.length));
-    const font = `${px}px "JetBrains Mono", monospace`;
-    ctx.setTransform(1,0,0,1,0,0);
-    ctx.font = font;
-    const charWidth = Math.ceil(ctx.measureText('█').width || px);
-    const lineHeight = Math.ceil(px * 1.1);
-    const width = charWidth * cols + padding * 2;
-    const height = lineHeight * rows + padding * 2;
-    const DPR = Math.max(1, window.devicePixelRatio || 1);
-    canvas.width = Math.ceil(width * DPR);
-    canvas.height = Math.ceil(height * DPR);
-    canvas.style.width = width + 'px';
-    canvas.style.height = height + 'px';
-    ctx.setTransform(DPR,0,0,DPR,0,0);
-    ctx.font = font;
-    ctx.textBaseline = 'top';
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim() || '#d1d725';
-    ctx.clearRect(0,0,width,height);
-    for(let r=0;r<rows;r++){
-      ctx.fillText(lines[r], padding, padding + r*lineHeight);
-    }
+  #screen{
+    display:block;
+    width:100%;
+    height:100%;
+    max-width:1280px;
+    max-height:800px;
+    aspect-ratio: 960/576;
+    background:#000;
+    image-rendering: pixelated;
+    touch-action:none; /* avoid touch scrolling */
   }
-  window.addEventListener('resize', renderHudLogo, {passive:true});
-  renderHudLogo();
-})();
-</script>
+  
+  /* =========================
+     BOTTOM HUD BAR
+     ========================= */
+  .hud-bottom{
+    display:flex;
+    align-items:center;
+    justify-content:space-between; /* left stats | middle info | right controls */
+    gap:12px;
+    padding:10px 14px;
+    background:linear-gradient(to bottom, var(--hud), var(--hud2));
+    border-top:1px solid var(--hudBorder);
+    box-shadow: inset 0 1px 0 var(--hudHi), 0 -2px 0 var(--hudLo);
+    min-height:72px;
+    color:var(--ink);
+  }
+  
+  /* Logo canvas on the left */
+  .hud-bottom .logo{
+    width:200px;
+    height:42px;
+    display:block;
+    image-rendering: pixelated;
+  }
+  
+  /* Thin separator bars between HUD columns */
+  .sep{
+    width:1px;
+    align-self:stretch;
+    background:linear-gradient(
+      to bottom,
+      rgba(255,255,200,.08),
+      rgba(0,0,0,.6)
+    );
+    border-left:1px solid rgba(255,255,200,.05);
+    border-right:1px solid rgba(0,0,0,.5);
+    opacity:.9;
+  }
+  
+  /* Columns & rows inside HUD */
+  .hud-col{ display:flex; flex-direction:column; gap:6px; min-width:0; }
+  .hud-row{ display:flex; align-items:center; gap:8px; white-space:nowrap; }
+  
+  /* Tags (e.g., build version) */
+  .tag{
+    display:inline-block;
+    padding:2px 6px;
+    border:1px solid var(--hudBorder);
+    background:rgba(0,0,0,.25);
+    border-radius:4px;
+    font-size:14px;
+    color:var(--inkSoft);
+  }
+  
+  /* Meter (sanity bar) */
+  .meter{
+    --h:12px;
+    position:relative;
+    width:180px;
+    height:var(--h);
+    border:1px solid var(--hudBorder);
+    background:rgba(0,0,0,.35);
+    border-radius:4px;
+    overflow:hidden;
+  }
+  .meter i{
+    display:block;
+    height:100%;
+    background:linear-gradient(90deg, #7efc6b, #c8f35a);
+  }
+  
+  /* Keyboard hint chips */
+  .kbd{
+    display:inline-block;
+    padding:1px 6px;
+    border:1px solid var(--hudBorder);
+    background:#111;
+    border-radius:4px;
+    color:#ddd;
+    font-size:14px;
+  }
+  
+  /* Right side controls container (place Instructions button here) */
+  .hud-right{ display:flex; align-items:center; gap:14px; }
+  
+  /* HUD buttons (e.g., Instructions) */
+  .hud-btn{
+    font: inherit;
+    padding:4px 10px;
+    border:1px solid var(--hudBorder);
+    background:var(--hud);
+    color:var(--ink);
+    border-radius:6px;
+    cursor:pointer;
+  }
+  .hud-btn:focus{ outline:2px solid #fff4; outline-offset:2px; }
+  .hud-btn:hover{ filter:brightness(1.1); }
+  
+  /* =========================
+     INSTRUCTIONS MODAL
+     ========================= */
+  .modal.hidden{ display:none; }
+  .modal{ position:fixed; inset:0; display:grid; place-items:center; z-index:50; }
+  .modal-backdrop{ position:absolute; inset:0; background:rgba(0,0,0,0.6); }
+  .modal-sheet{
+    position:relative; z-index:1; background:#0b0f14; color:var(--ink);
+    border:2px solid var(--hudBorder); border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,.6);
+    width:min(520px, calc(100vw - 32px)); padding:18px;
+  }
+  .modal-sheet h2{ margin:0 0 8px; font-size:20px; letter-spacing:.5px; }
+  .modal-sheet ul{ margin:0 0 12px 18px; padding:0; }
+  .modal-sheet li{ margin:6px 0; }
+  
+  /* =========================
+     TOUCH JOYSTICK (MOBILE)
+     ========================= */
+  .touch-controls{ 
+    display:none; 
+    position:absolute; 
+    inset:auto 16px 16px auto; 
+  }
+  .touch-controls .stick{
+    width:110px; height:110px; border-radius:50%;
+    background:rgba(0,0,0,.35); border:2px solid var(--hudBorder);
+    position:relative;
+  }
+  .touch-controls .nub{
+    position:absolute; left:50%; top:50%;
+    width:42px; height:42px; margin:-21px 0 0 -21px;
+    border-radius:50%;
+    background:rgba(255,255,255,.12); border:2px solid var(--hudBorder);
+  }
+  /* Show joystick on coarse pointers (phones/tablets) */
+  @media (hover:none) and (pointer:coarse){
+    .touch-controls{ display:block; }
+  }
+  /* Keep everything from grabbing scroll/zoom while playing */
+  canvas, .view, .touch-controls { touch-action: none; }
+  
+  /* =========================
+     RESPONSIVE TWEAKS
+     ========================= */
+  @media (max-width: 900px){
+    .hud-bottom{ flex-wrap:wrap; row-gap:8px; padding:8px 10px; min-height:0; }
+    .hud-bottom .logo{ width:160px; height:34px; }
+    .meter{ width:140px; }
+    .kbd{ font-size:12px; }
+    .hud-btn{ padding:4px 8px; }
+  }
+  </style>
+  </head>
+  <body>
+    <div class="app">
+      <!-- World -->
+      <div class="view">
+        <canvas id="screen" width="960" height="576" role="application" aria-label="Kommando game screen"></canvas>
+      </div>
+    
+      <!-- HUD -->
+      <div class="hud-bottom">
+        <canvas class="logo" id="hudLogo"></canvas>
+        <div class="sep"></div>
+    
+        <div class="hud-col meta">
+          <div class="hud-row">
+            <span style="font-size:18px">Fog Of War</span>
+            <span class="tag" id="build">v0.8.0</span>
+          </div>
+          <div class="hud-row level-row">
+            <span>Level:</span><span id="levelName" style="min-width:160px">&#8212;</span>
+          </div>
+        </div>
+    
+        <div class="sep"></div>
+    
+        <div class="hud-col stats">
+          <div class="hud-row">
+            <span>Sanity</span>
+            <div class="meter"><i id="sanityBar" style="width:100%"></i></div>
+            <span id="sanityPct">100%</span>
+          </div>
+          <div class="hud-row">
+            <span>Fragments</span><span id="diamonds">0/0</span>
+            <span style="opacity:.6">|</span>
+            <span>Exit</span><span id="exitState">Locked</span>
+            <span style="opacity:.6">|</span>
+            <span>Seeds</span><span id="seedsCount">0</span>
+          </div>
+        </div>
+    
+        <div class="sep"></div>
+    
+        <div class="hud-col controls">
+          <div class="hud-row">
+            <span>Move</span><span class="kbd">WASD</span><span>/</span><span>Arrows</span>
+          </div>
+          <!-- Instructions button -->
+          <button id="btnInstructions" class="hud-btn" aria-haspopup="dialog" aria-controls="instructionsModal" title="Quick instructions">
+            Instructions
+          </button>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Touch joystick (hidden on desktop) -->
+    <div class="touch-controls" aria-hidden="true">
+      <div class="stick" id="stick">
+        <div class="nub" id="stickNub"></div>
+      </div>
+    </div>
+    
+    <!-- Instructions Modal -->
+    <div id="instructionsModal" role="dialog" aria-modal="true" aria-labelledby="instrTitle" class="modal hidden">
+      <div class="modal-sheet">
+        <h2 id="instrTitle">How to Play</h2>
+        <ul>
+          <li><b>Move:</b> WASD or Arrow Keys (mobile: on-screen joystick)</li>
+          <li>Collect all memory fragments to unlock the Exit</li>
+          <li>Sanity drains over time — fragments (+) and seeds (+++) restore it</li>
+          <li>Drones patrol and will chase if they see you</li>
+          <li>Palm trees provide camouflage from drones</li>
+          <li>Mines hurt sanity and can scramble your controls</li>
+          <li>Ghosts (Paranoia) disturb sanity and visibility</li>
+        </ul>
+        <button id="btnCloseInstructions" class="hud-btn">Close</button>
+      </div>
+      <div class="modal-backdrop"></div>
+    </div>
+    
+    <!-- Minimal wiring for the modal (idempotent) -->
+    <script>
+    (function(){
+      const openBtn  = document.getElementById('btnInstructions');
+      const modal    = document.getElementById('instructionsModal');
+      const closeBtn = document.getElementById('btnCloseInstructions');
+      if (!modal || !openBtn || openBtn.dataset.bound) return;
+      openBtn.dataset.bound = '1';
+    
+      const open  = ()=> { modal.classList.remove('hidden'); closeBtn?.focus(); };
+      const close = ()=> modal.classList.add('hidden');
+    
+      openBtn.addEventListener('click', open);
+      closeBtn?.addEventListener('click', close);
+      modal.addEventListener('click', (e)=>{ if(e.target === modal || e.target.classList.contains('modal-backdrop')) close(); });
+      window.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') close(); });
+    })();
+    </script>
+     
+    <!-- Load audio engine first -->
+    <script src="./audio.js"></script>
 
+    <!-- Keep this AFTER audio.js -->
 <script>
-/**********************
- * CONFIG & CONSTANTS *
- **********************/
-const TILE_W = 24;
-const TILE_H = 26;
-const VIEW_ZOOM = (window.matchMedia("(max-width: 860px)").matches ? 3.5 : 2.5);
-const __PORTRAIT = isPortraitMobile();
-const GRID_W = __PORTRAIT ? 52 : 60;
-const GRID_H = __PORTRAIT ? 34 : 30;
-const WORLD_W = GRID_W * TILE_W;
-const WORLD_H = GRID_H * TILE_H;
+  /* First-gesture audio unlock — single source of truth */
+  (function () {
+    const onFirstGesture = () => {
+      if (!window.KomAudio) return;
+      try {
+        // Ensure file map is applied, then resume & start bg in same gesture
+        window.KomAudio.configureFiles?.();
+        window.KomAudio.resume(true);
+        window.KomAudio.armAutoBackground?.({ gain: 0.62, fadeIn: 0.9 });
+        window.KomAudio.startBackground?.({ gain: 0.62, fadeIn: 0.9 });
+      } catch (e) {
+        console.warn('Audio unlock error', e);
+      }
+    };
+    ['pointerdown', 'mousedown', 'touchstart', 'keydown'].forEach(evt => {
+      window.addEventListener(evt, onFirstGesture, { once: true, passive: true });
+      document.addEventListener(evt, onFirstGesture, { once: true, passive: true });
+    });
+  })();
+  </script>
+  
+  
+    <script>
+    /* one-time audio unlock (extra-safe) */
+    (function(){
+      const unlock = () => {
+        if (window.KomAudio && typeof window.KomAudio.resume === 'function') {
+          window.KomAudio.resume(true);
+          window.KomAudio.startBackground?.({ gain: 0.65, fadeIn: 1.0 });
+        }
+      };
+      ['pointerdown','mousedown','touchstart'].forEach(evt => window.addEventListener(evt, unlock, { once: true, passive: true }));
+      window.addEventListener('keydown', unlock, { once: true });
+    })();
+  
+    /* used by render() and the joystick */
+    function isPortraitMobile(){
+      return window.matchMedia('(max-width: 860px) and (orientation: portrait)').matches;
+    }
+  
+    /* HUD ASCII logo renderer */
+    (function(){
+      const HUD_ASCII = `
+  █████   ████    ███████    ██████   ██████ ██████   ██████   █████████   ██████   █████ ██████████      ███████
+  ▒▒███   ███▒   ███▒▒▒▒▒███ ▒▒██████ ██████ ▒▒██████ ██████   ███▒▒▒▒▒███ ▒▒██████ ▒▒███ ▒▒███▒▒▒▒███   ███▒▒▒▒▒███
+   ▒███  ███    ███     ▒▒███ ▒███▒█████▒███  ▒███▒█████▒███  ▒███    ▒███  ▒███▒███ ▒███  ▒███   ▒▒███ ███     ▒▒███
+   ▒███████    ▒███      ▒███ ▒███▒▒███ ▒███  ▒███▒▒███ ▒███  ▒███████████  ▒███▒▒███▒███  ▒███    ▒███▒███      ▒███
+   ▒███▒▒███   ▒███      ▒███ ▒███ ▒▒▒  ▒███  ▒███ ▒▒▒  ▒███  ▒███▒▒▒▒▒███  ▒███ ▒▒██████  ▒███    ▒███▒███      ▒███
+   ▒███ ▒▒███  ▒▒███     ███  ▒███      ▒███  ▒███      ▒███  ▒███    ▒███  ▒███  ▒▒█████  ▒███    ███ ▒▒███     ███
+   █████ ▒▒████ ▒▒▒███████▒   █████     █████ █████     █████ █████   █████ █████  ▒▒█████ ██████████   ▒▒▒███████▒
+  ▒▒▒▒▒   ▒▒▒▒    ▒▒▒▒▒▒▒    ▒▒▒▒▒     ▒▒▒▒▒ ▒▒▒▒▒     ▒▒▒▒▒ ▒▒▒▒▒   ▒▒▒▒▒ ▒▒▒▒▒    ▒▒▒▒▒ ▒▒▒▒▒▒▒▒▒▒      ▒▒▒▒▒▒▒
+  `;
+      const padding = 2;
+      const px = 3;
+      function renderHudLogo(){
+        const canvas = document.getElementById('hudLogo');
+        if(!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const lines = HUD_ASCII.split('\n');
+        const rows = lines.length;
+        const cols = Math.max(...lines.map(l => l.length));
+        const font = `${px}px "JetBrains Mono", monospace`;
+        ctx.setTransform(1,0,0,1,0,0);
+        ctx.font = font;
+        const charWidth = Math.ceil(ctx.measureText('█').width || px);
+        const lineHeight = Math.ceil(px * 1.1);
+        const width = charWidth * cols + padding * 2;
+        const height = lineHeight * rows + padding * 2;
+        const DPR = Math.max(1, window.devicePixelRatio || 1);
+        canvas.width = Math.ceil(width * DPR);
+        canvas.height = Math.ceil(height * DPR);
+        canvas.style.width = width + 'px';
+        canvas.style.height = height + 'px';
+        ctx.setTransform(DPR,0,0,DPR,0,0);
+        ctx.font = font;
+        ctx.textBaseline = 'top';
+        ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--ink').trim() || '#d1d725';
+        ctx.clearRect(0,0,width,height);
+        for(let r=0;r<rows;r++){
+          ctx.fillText(lines[r], padding, padding + r*lineHeight);
+        }
+      }
+      window.addEventListener('resize', renderHudLogo, {passive:true});
+      renderHudLogo();
+    })();
+  
+    /* Instructions modal wiring (idempotent) */
+    (function(){
+      const openBtn  = document.getElementById('btnInstructions');
+      const modal    = document.getElementById('instructionsModal');
+      const closeBtn = document.getElementById('btnCloseInstructions');
+      if (!modal || !openBtn || openBtn.dataset.bound) return;
+      openBtn.dataset.bound = '1';
+  
+      const open = ()=> { modal.classList.remove('hidden'); document.getElementById('btnCloseInstructions')?.focus(); };
+      const close = ()=> modal.classList.add('hidden');
+  
+      openBtn.addEventListener('click', open);
+      closeBtn?.addEventListener('click', close);
+      modal.addEventListener('click', (e)=>{ if(e.target === modal || e.target.classList.contains('modal-backdrop')) close(); });
+      window.addEventListener('keydown', (e)=>{ if(e.key === 'Escape') close(); });
+    })();
+    </script>
+    <script>
+      // Boot the game after the DOM is ready
+      window.addEventListener('DOMContentLoaded', () => {
+        try {
+          buildSprites();
+          window.game = new Game();
+        } catch (e) {
+          console.error('Game boot error:', e);
+        }
+      });
+    </script>
+    <script>
+  /**********************
+   * CONFIG & CONSTANTS *
+   **********************/
+  const TILE_W = 24;
+  const TILE_H = 26;
+  const VIEW_ZOOM = (window.matchMedia("(max-width: 860px)").matches ? 3.5 : 2.5);
+  const __PORTRAIT = isPortraitMobile(); // assumes you define this elsewhere
+  const GRID_W = __PORTRAIT ? 52 : 60;
+  const GRID_H = __PORTRAIT ? 34 : 30;
+  const WORLD_W = GRID_W * TILE_W;
+  const WORLD_H = GRID_H * TILE_H;
+  
+  const MOVE_COOLDOWN   = 70;
+  const ENEMY_COOLDOWN  = 130;
+  const BULLET_COOLDOWN = 140;
+  const BULLET_SPEED    = 0.55;
+  const SANITY_DRAIN_PS = 3;
+  
+  const Glyphs = { mine: { ch:'✚', fg:'#ffd94d' } };
+  
+  const PALETTES = {
+  // Level 1 — crisp brown floor vs original brick walls
+  reality: {
+    name:'Reality',
+    tint:[1.30,1.85,1.15],
+    bg:'#0e141d',
+    lampColor:'rgba(10,80,30,0.32)',
+    rainColor:'rgba(135,165,215,0.6)',
+    floorTint:'rgba(12,58,98,0.44)',   // DEEP BROWN (strong alpha for contrast)
+    // wallTint intentionally omitted to keep original wall color
+  },
 
-const MOVE_COOLDOWN   = 70;
-const ENEMY_COOLDOWN  = 130;
-const BULLET_COOLDOWN = 140;
-const BULLET_SPEED    = 0.55;
-const SANITY_DRAIN_PS = 3;
+  // Level 2 — richer green floor, walls unchanged
+  jungle: {
+    name:'Flashback',
+    tint:[0.65,1.22,0.70],
+    bg:'#041407',
+    fogColor:'rgba(14,60,28,0.55)',
+    flash:'#ffd94d',
+    tracer:'#ffe871',
+    floorTint:'rgba(46,82,44,0.44)',   // DARK JUNGLE GREEN
+  },
 
-const Glyphs = { mine: { ch:'✚', fg:'#ffd94d' } };
+  // Level 3 — dark maroon floor for strong separation
+  paranoia: {
+    name:'Paranoia',
+    tint:[1.35,0.52,0.52],
+    bg:'#1b0404',
+    bleed:'#5c0909',
+    flash:'#7a0000',
+    floorTint:'rgba(110,26,26,0.44)',  // DEEP REDDISH FLOOR
+  },
 
-const PALETTES = {
-  reality:   { name:'Reality',   tint:[0.70,0.85,1.15], bg:'#0c131d', lampColor:'rgba(150,180,230,0.32)', rainColor:'rgba(135,165,215,0.6)', floorTint:'rgba(36,58,88,0.28)', wallTint:'rgba(90,110,140,0.22)' },
-  jungle:    { name:'Flashback', tint:[0.65,1.22,0.70], bg:'#041407', fogColor:'rgba(14,60,28,0.55)', flash:'#ffd94d', tracer:'#ffe871', floorTint:'rgba(26,82,44,0.28)', wallTint:'rgba(52,120,68,0.26)' },
-  paranoia:  { name:'Paranoia',  tint:[1.35,0.52,0.52], bg:'#1b0404', bleed:'#5c0909', flash:'#7a0000', floorTint:'rgba(110,26,26,0.26)', wallTint:'rgba(140,30,30,0.30)' },
-  psychosis: { name:'Psychosis', tint:[1.0,1.0,1.0],   bg:'#050505', flash:'#aa0000', mode:'bw', floorTint:'rgba(210,210,210,0.15)', wallTint:'rgba(80,80,80,0.18)' },
-  collapse:  { name:'Collapse',  tint:[1.12,1.04,1.10], bg:'#040404', flash:'#b8a37a', static:'#d0d0d0', floorTint:'rgba(56,54,60,0.22)', wallTint:'rgba(92,82,70,0.25)' },
+  // Level 4 — light gray floor against dark scene
+  psychosis: {
+    name:'Psychosis',
+    tint:[1.0,1.0,1.0],
+    bg:'#050505',
+    flash:'#aa0000',
+    mode:'bw',
+    floorTint:'rgba(210,210,210,0.38)', // PALE GRAY (lighter to pop from walls)
+  },
+
+  // Level 5 — slate/cool floor to separate from brick walls
+  collapse: {
+    name:'Collapse',
+    tint:[1.12,1.04,1.10],
+    bg:'#040404',
+    flash:'#b8a37a',
+    static:'#d0d0d0',
+    floorTint:'rgba(56,54,60,0.46)',   // COOL SLATE
+  },
 };
 
-const LEVELS = [
-  { id:1, key:'reality',   name:'WELCOME HOME',
-    enemies:1, diamonds:1, mines:0, heals:2,
-    complexity:{ rooms:10, connectors:3, carveSeeds:1, carveStepMul:1.10 } },
-
-  { id:2, key:'jungle',    name:'FLASHBACK',
-    enemies:2, diamonds:2, mines:0, heals:2,
-    complexity:{ rooms:14, connectors:5, carveSeeds:3, carveStepMul:1.60 } },
-
-  { id:3, key:'paranoia',  name:'TARGETS OF OPPORTUNITY',
-    enemies:3, diamonds:2, mines:1, heals:2,
-    complexity:{ rooms:15, connectors:5, carveSeeds:3, carveStepMul:1.35 } },
-
-  { id:4, key:'psychosis', name:'THE RAID',
-    enemies:4, diamonds:3, mines:2, heals:2,
-    complexity:{ rooms:16, connectors:6, carveSeeds:4, carveStepMul:1.45 } },
-
-  { id:5, key:'collapse',  name:'EXTRACTION',
-    enemies:5, diamonds:3, mines:3, heals:2,
-    complexity:{ rooms:18, connectors:7, carveSeeds:4, carveStepMul:1.60 } },
-];
-
-
-/**********************
- * UTILS / FOV / MAP  *
- **********************/
-const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-const rand =(n)=>Math.floor(Math.random()*n);
-const manhattan=(x1,y1,x2,y2)=>Math.abs(x1-x2)+Math.abs(y1-y2);
-function log(msg){ try{ console.log('[LOG]', msg);}catch(_){} }
-
-function computeFOV(map, ox, oy, radius=12){
-  const vis=new Set(); vis.add(oy*map.w+ox);
-  function castRow(row,start,end,xx,xy,yx,yy){
-    if(start<end) return; let r=row;
-    while(r<=radius){
-      let dx=-r-1, dy=-r, blocked=false;
-      while(dx<=0){
-        dx++;
-        const X=ox+dx*xx+dy*xy, Y=oy+dx*yx+dy*yy;
-        const ldx=-dx, ldy=dy; const lSlope=(ldx-0.5)/(ldy+0.5), rSlope=(ldx+0.5)/(ldy-0.5);
-        if(!(X>=0&&Y>=0&&X<map.w&&Y<map.h) || start<rSlope) { continue; }
-        if(end>lSlope){ break; }
-        const idx=Y*map.w+X; if((dx*dx+dy*dy)<=radius*radius){ vis.add(idx); }
-        if(map.isWall(X,Y)){
-          if(!blocked){ blocked=true; start=rSlope; castRow(r+1,start,end,xx,xy,yx,yy); }
-          else { end=lSlope; }
-        } else if(blocked){ blocked=false; start=rSlope; }
-      }
-      r++;
+  
+  const LEVELS = [
+    { id:1, key:'reality',   name:'WELCOME HOME',
+      enemies:1, diamonds:1, mines:0, heals:2,
+      complexity:{ rooms:10, connectors:3, carveSeeds:1, carveStepMul:1.10 } },
+  
+    { id:2, key:'jungle',    name:'FLASHBACK',
+      enemies:2, diamonds:2, mines:0, heals:2,
+      complexity:{ rooms:14, connectors:5, carveSeeds:3, carveStepMul:1.60 } },
+  
+    { id:3, key:'paranoia',  name:'TARGETS OF OPPORTUNITY',
+      enemies:3, diamonds:2, mines:1, heals:2,
+      complexity:{ rooms:15, connectors:5, carveSeeds:3, carveStepMul:1.35 } },
+  
+    { id:4, key:'psychosis', name:'THE RAID',
+      enemies:4, diamonds:3, mines:2, heals:2,
+      complexity:{ rooms:16, connectors:6, carveSeeds:4, carveStepMul:1.45 } },
+  
+    { id:5, key:'collapse',  name:'EXTRACTION',
+      enemies:5, diamonds:3, mines:3, heals:2,
+      complexity:{ rooms:18, connectors:7, carveSeeds:4, carveStepMul:1.60 } },
+  ];
+  
+  // ------- Immediately arm background; unlock on first gesture (robust) -------
+  (function ARM_AUDIO(){
+    if (!window.KomAudio) return;
+  
+    // Ensure default file map; if any files are missing, KomAudio will use procedural fallbacks.
+    if (typeof window.KomAudio.configureFiles === 'function') {
+      window.KomAudio.configureFiles();
     }
-  }
-  castRow(1,1.0,0.0, 1,0,0,1); castRow(1,1.0,0.0, 1,0,0,-1); castRow(1,1.0,0.0,-1,0,0,1); castRow(1,1.0,0.0,-1,0,0,-1);
-  castRow(1,1.0,0.0, 0,1,1,0); castRow(1,1.0,0.0, 0,1,-1,0); castRow(1,1.0,0.0, 0,-1,1,0); castRow(1,1.0,0.0, 0,-1,-1,0);
-  if(radius>0 && vis.size===1){
-    const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
-    for(const [dx,dy] of dirs){
-      const nx=ox+dx, ny=oy+dy;
-      if(nx>=0 && ny>=0 && nx<map.w && ny<map.h && !(map.isWall && map.isWall(nx,ny))){
-        vis.add(ny*map.w+nx);
-      }
-    }
-  }
-  return vis;
-}
-
-/***************
- * ATMOS FX
- ***************/
-function vignette(ctx, w, h, strength=0.55){
-  const g = ctx.createRadialGradient(w/2,h/2, Math.min(w,h)*0.15, w/2,h/2, Math.max(w,h)*0.72);
-  g.addColorStop(0,'rgba(0,0,0,0)');
-  g.addColorStop(1,`rgba(0,0,0,${strength})`);
-  ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
-}
-
-// Kept but not used; vertical CRT effect removed elsewhere
-function scanlines(ctx, w, h, a=0.10, gap=2){
-  ctx.globalAlpha = a;
-  for(let y=0;y<h;y+=gap) ctx.fillRect(0,y,w,1);
-  ctx.globalAlpha = 1;
-}
-
-function chromaAberration(ctx, w, h, px=1){
-  try{
-    const off = document.createElement('canvas'); off.width=w; off.height=h;
-    const g = off.getContext('2d');
-    g.drawImage(ctx.canvas,0,0);
-    ctx.globalCompositeOperation='screen';
-    ctx.globalAlpha=0.24; ctx.drawImage(off, +px,0); // R
-    ctx.globalAlpha=0.20; ctx.drawImage(off, -px,0); // G
-    ctx.globalAlpha=0.18; ctx.drawImage(off, 0,+px); // B
-  }finally{
-    ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over';
-  }
-}
-
-function lcdNoise(ctx, w, h, a=0.06, density=0.9){
-  const n = (w*h/110)|0;
-  ctx.globalAlpha = a;
-  for(let i=0;i<n;i++){
-    ctx.fillStyle = (Math.random()<density)?'rgba(255,255,255,0.9)':'rgba(0,0,0,0.9)';
-    ctx.fillRect((Math.random()*w)|0,(Math.random()*h)|0,1,1);
-  }
-  ctx.globalAlpha = 1;
-}
-
-function vignetteCorners(ctx, w, h, a=0.35){
-  const sz = Math.min(w,h)*0.22;
-  ctx.globalAlpha=a;
-  ctx.fillStyle='#000';
-  ctx.fillRect(0,0,sz,sz);
-  ctx.fillRect(w-sz,0,sz,sz);
-  ctx.fillRect(0,h-sz,sz,sz);
-  ctx.fillRect(w-sz,h-sz,sz,sz);
-  ctx.globalAlpha=1;
-}
-
-function shake(ctx, mag=1.2){
-  ctx.translate((Math.random()-0.5)*mag,(Math.random()-0.5)*mag);
-}
-
-/* soft “ambient occlusion” on tile edges: darken floor next to walls */
-function edgeDarken(ctx, map, tileW, tileH, color='rgba(0,0,0,0.18)'){
-  ctx.fillStyle=color;
-  for(let y=1;y<map.h-1;y++){
-    for(let x=1;x<map.w-1;x++){
-      if(!map.isWall(x,y)){
-        const wx = map.isWall(x+1,y) || map.isWall(x-1,y);
-        const wy = map.isWall(x,y+1) || map.isWall(x,y-1);
-        if(wx) ctx.fillRect(x*tileW, y*tileH, tileW, 2);
-        if(wy) ctx.fillRect(x*tileW, y*tileH, 2, tileH);
-      }
-    }
-  }
-}
-
-
-class RNG{constructor(seed=Date.now()%1e9){this.s=seed>>>0;} next(){let x=this.s; x^=x<<13; x^=x>>>17; x^=x<<5; this.s=x>>>0; return this.s/0xFFFFFFFF;} int(n){return Math.floor(this.next()*n);} }
-
-class Map{
-  constructor(w,h){
-    const W=Math.max(5,Number.isFinite(w)?Math.floor(w):0);
-    const H=Math.max(5,Number.isFinite(h)?Math.floor(h):0);
-    this.w=W; this.h=H; this.cells=new Array(W*H).fill(1);
-  }
-  idx(x,y){return y*this.w+x;} inb(x,y){return x>=0&&y>=0&&x<this.w&&y<this.h;} isWall(x,y){return this.cells[this.idx(x,y)]===1;} carve(x,y){this.cells[this.idx(x,y)]=0;}
-  carveRect(x0,y0,x1,y1){ const xA=Math.max(1,Math.min(x0,x1)), xB=Math.min(this.w-2,Math.max(x0,x1)); const yA=Math.max(1,Math.min(y0,y1)), yB=Math.min(this.h-2,Math.max(y0,y1)); for(let y=yA;y<=yB;y++) for(let x=xA;x<=xB;x++) this.carve(x,y); }
-
-  generate(seed, opts={}){
-    const rng=new RNG(seed);
-    const w=this.w,h=this.h; const id=(x,y)=>y*w+x; const cells=this.cells;
-    for(let i=0;i<cells.length;i++) cells[i]=1;
-
-    const targetRooms = opts.rooms ?? 10;
-    const extraConnect = opts.connectors ?? 2;
-    const carveSeeds = opts.carveSeeds ?? (1 + rand(2));
-    const carveStepMul = opts.carveStepMul ?? 1.0;
-
-    const rooms=[]; let attempts=0;
-    while(rooms.length<targetRooms && attempts<targetRooms*40){
-      attempts++;
-      const large = Math.random()<0.45;
-      const rw = large ? 10+rand(8) : 4+rand(4);
-      const rh = large ?  6+rand(5) : 3+rand(3);
-      const rx = 2+rand(Math.max(2,w-rw-4));
-      const ry = 2+rand(Math.max(2,h-rh-4));
-      const rect={x:rx,y:ry,w:rw,h:rh,cx:rx+Math.floor(rw/2),cy:ry+Math.floor(rh/2)};
-      let overlaps=false; for(const r of rooms){ if(!(rect.x+rect.w+1<r.x || r.x+r.w+1<rect.x || rect.y+rect.h+1<r.y || r.y+r.h+1<rect.y)){ overlaps=true; break; } }
-      if(!overlaps){ rooms.push(rect); this.carveRect(rect.x,rect.y,rect.x+rect.w,rect.y+rect.h); }
-    }
-
-    const centers=rooms.map(r=>[r.cx,r.cy]);
-    function digL(ax,ay,bx,by){ let x=ax,y=ay; while(x!==bx){ x += (bx>x)?1:-1; cells[id(x,y)]=0; } while(y!==by){ y += (by>y)?1:-1; cells[id(x,y)]=0; } cells[id(bx,by)]=0; }
-    if(centers.length){
-      const N=centers.length; const used=new Array(N).fill(false); used[0]=true; let edges=0;
-      while(edges<N-1){
-        let bestA=-1,bestB=-1,bestD=1e9;
-        for(let a=0;a<N;a++) if(used[a]) for(let b=0;b<N;b++) if(!used[b]){
-          const dx=centers[a][0]-centers[b][0], dy=centers[a][1]-centers[b][1];
-          const d=dx*dx+dy*dy; if(d<bestD){ bestD=d; bestA=a; bestB=b; }
+  
+    // Arm loop so it starts on the first user gesture
+    window.KomAudio.armAutoBackground({ gain: 0.62, fadeIn: 0.9 });
+  
+    // On first input, resume AND explicitly start the loop to avoid first-round silence
+    const unlock = () => {
+      window.KomAudio.resume(true).then(() => {
+        window.KomAudio.startBackground({ gain: 0.62, fadeIn: 0.9 });
+      });
+    };
+    ['pointerdown','mousedown','touchstart','keydown'].forEach(ev=>{
+      window.addEventListener(ev, unlock, { once:true, passive:true });
+      document.addEventListener(ev, unlock, { once:true, passive:true });
+    });
+  })();
+  
+  /**********************
+   * UTILS / FOV / MAP  *
+   **********************/
+  const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+  const rand =(n)=>Math.floor(Math.random()*n);
+  const manhattan=(x1,y1,x2,y2)=>Math.abs(x1-x2)+Math.abs(y1-y2);
+  function log(msg){ try{ console.log('[LOG]', msg);}catch(_){} }
+  
+  function computeFOV(map, ox, oy, radius=12){
+    const vis=new Set(); vis.add(oy*map.w+ox);
+    function castRow(row,start,end,xx,xy,yx,yy){
+      if(start<end) return; let r=row;
+      while(r<=radius){
+        let dx=-r-1, dy=-r, blocked=false;
+        while(dx<=0){
+          dx++;
+          const X=ox+dx*xx+dy*xy, Y=oy+dx*yx+dy*yy;
+          const ldx=-dx, ldy=dy; const lSlope=(ldx-0.5)/(ldy+0.5), rSlope=(ldx+0.5)/(ldy-0.5);
+          if(!(X>=0&&Y>=0&&X<map.w&&Y<map.h) || start<rSlope) { continue; }
+          if(end>lSlope){ break; }
+          const idx=Y*map.w+X; if((dx*dx+dy*dy)<=radius*radius){ vis.add(idx); }
+          if(map.isWall(X,Y)){
+            if(!blocked){ blocked=true; start=rSlope; castRow(r+1,start,end,xx,xy,yx,yy); }
+            else { end=lSlope; }
+          } else if(blocked){ blocked=false; start=rSlope; }
         }
-        if(bestB===-1) break; used[bestB]=true; edges++;
-        digL(centers[bestA][0],centers[bestA][1], centers[bestB][0],centers[bestB][1]);
+        r++;
       }
-      for(let k=0;k<extraConnect;k++){ const a=rand(N), b=rand(N); if(a!==b) digL(centers[a][0],centers[a][1], centers[b][0],centers[b][1]); }
     }
-
-    // odd-grid sparse carve
-    const odd = v => (v%2===1);
-    const inOddGrid=(x,y)=> x>1&&y>1&&x<w-2&&y<h-2&&odd(x)&&odd(y);
-    const dirs=[[2,0],[-2,0],[0,2],[0,-2]];
-    function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } return a; }
-
-    function carveSparseFrom(sx,sy,stepsMax){
-      let steps=0; const st=[[sx,sy]]; cells[id(sx,sy)]=0;
-      while(st.length && steps<stepsMax){
-        const [cx,cy]=st[st.length-1];
-        let moved=false; const order=shuffle(dirs.slice());
-        for(const [dx,dy] of order){
-          const nx=cx+dx, ny=cy+dy;
-          if(inOddGrid(nx,ny) && cells[id(nx,ny)]===1){
-            cells[id(cx+dx/2,cy+dy/2)]=0; cells[id(nx,ny)]=0; st.push([nx,ny]); moved=true; steps++; break;
+    castRow(1,1.0,0.0, 1,0,0,1);  castRow(1,1.0,0.0, 1,0,0,-1);
+    castRow(1,1.0,0.0,-1,0,0,1);  castRow(1,1.0,0.0,-1,0,0,-1);
+    castRow(1,1.0,0.0, 0,1,1,0);  castRow(1,1.0,0.0, 0,1,-1,0);
+    castRow(1,1.0,0.0, 0,-1,1,0); castRow(1,1.0,0.0, 0,-1,-1,0);
+    if(radius>0 && vis.size===1){
+      const dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+      for(const [dx,dy] of dirs){
+        const nx=ox+dx, ny=oy+dy;
+        if(nx>=0 && ny>=0 && nx<map.w && ny<map.h && !(map.isWall && map.isWall(nx,ny))){
+          vis.add(ny*map.w+nx);
+        }
+      }
+    }
+    return vis;
+  }
+  
+  /***************
+   * ATMOS FX
+   ***************/
+  function vignette(ctx, w, h, strength=0.55){
+    const g = ctx.createRadialGradient(w/2,h/2, Math.min(w,h)*0.15, w/2,h/2, Math.max(w,h)*0.72);
+    g.addColorStop(0,'rgba(0,0,0,0)');
+    g.addColorStop(1,`rgba(0,0,0,${strength})`);
+    ctx.fillStyle = g; ctx.fillRect(0,0,w,h);
+  }
+  
+  // Kept but not used; vertical CRT effect removed elsewhere
+  function scanlines(ctx, w, h, a=0.10, gap=2){
+    ctx.globalAlpha = a;
+    for(let y=0;y<h;y+=gap) ctx.fillRect(0,y,w,1);
+    ctx.globalAlpha = 1;
+  }
+  
+  function chromaAberration(ctx, w, h, px=1){
+    try{
+      const off = document.createElement('canvas'); off.width=w; off.height=h;
+      const g = off.getContext('2d');
+      g.drawImage(ctx.canvas,0,0);
+      ctx.globalCompositeOperation='screen';
+      ctx.globalAlpha=0.24; ctx.drawImage(off, +px,0); // R
+      ctx.globalAlpha=0.20; ctx.drawImage(off, -px,0); // G
+      ctx.globalAlpha=0.18; ctx.drawImage(off, 0,+px); // B
+    }finally{
+      ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over';
+    }
+  }
+  
+  function lcdNoise(ctx, w, h, a=0.06, density=0.9){
+    const n = (w*h/110)|0;
+    ctx.globalAlpha = a;
+    for(let i=0;i<n;i++){
+      ctx.fillStyle = (Math.random()<density)?'rgba(255,255,255,0.9)':'rgba(0,0,0,0.9)';
+      ctx.fillRect((Math.random()*w)|0,(Math.random()*h)|0,1,1);
+    }
+    ctx.globalAlpha = 1;
+  }
+  
+  function vignetteCorners(ctx, w, h, a=0.35){
+    const sz = Math.min(w,h)*0.22;
+    ctx.globalAlpha=a;
+    ctx.fillStyle='#000';
+    ctx.fillRect(0,0,sz,sz);
+    ctx.fillRect(w-sz,0,sz,sz);
+    ctx.fillRect(0,h-sz,sz,sz);
+    ctx.fillRect(w-sz,h-sz,sz,sz);
+    ctx.globalAlpha=1;
+  }
+  
+  function shake(ctx, mag=1.2){
+    ctx.translate((Math.random()-0.5)*mag,(Math.random()-0.5)*mag);
+  }
+  
+  /* soft “ambient occlusion” on tile edges: darken floor next to walls */
+  function edgeDarken(ctx, map, tileW, tileH, color='rgba(0,0,0,0.18)'){
+    ctx.fillStyle=color;
+    for(let y=1;y<map.h-1;y++){
+      for(let x=1;x<map.w-1;x++){
+        if(!map.isWall(x,y)){
+          const wx = map.isWall(x+1,y) || map.isWall(x-1,y);
+          const wy = map.isWall(x,y+1) || map.isWall(x,y-1);
+          if(wx) ctx.fillRect(x*tileW, y*tileH, tileW, 2);
+          if(wy) ctx.fillRect(x*tileW, y*tileH, 2, tileH);
+        }
+      }
+    }
+  }
+  
+  class RNG{
+    constructor(seed=Date.now()%1e9){this.s=seed>>>0;}
+    next(){let x=this.s; x^=x<<13; x^=x>>>17; x^=x<<5; this.s=x>>>0; return this.s/0xFFFFFFFF;}
+    int(n){return Math.floor(this.next()*n);}
+  }
+  
+  class Map{
+    constructor(w,h){
+      const W=Math.max(5,Number.isFinite(w)?Math.floor(w):0);
+      const H=Math.max(5,Number.isFinite(h)?Math.floor(h):0);
+      this.w=W; this.h=H; this.cells=new Array(W*H).fill(1);
+    }
+    idx(x,y){return y*this.w+x;}
+    inb(x,y){return x>=0&&y>=0&&x<this.w&&y<this.h;}
+    isWall(x,y){return this.cells[this.idx(x,y)]===1;}
+    carve(x,y){this.cells[this.idx(x,y)]=0;}
+    carveRect(x0,y0,x1,y1){
+      const xA=Math.max(1,Math.min(x0,x1)), xB=Math.min(this.w-2,Math.max(x0,x1));
+      const yA=Math.max(1,Math.min(y0,y1)), yB=Math.min(this.h-2,Math.max(y0,y1));
+      for(let y=yA;y<=yB;y++) for(let x=xA;x<=xB;x++) this.carve(x,y);
+    }
+  
+    generate(seed, opts={}){
+      const rng=new RNG(seed);
+      const w=this.w,h=this.h; const id=(x,y)=>y*w+x; const cells=this.cells;
+      for(let i=0;i<cells.length;i++) cells[i]=1;
+  
+      const targetRooms = opts.rooms ?? 10;
+      const extraConnect = opts.connectors ?? 2;
+      const carveSeeds = opts.carveSeeds ?? (1 + rand(2));
+      const carveStepMul = opts.carveStepMul ?? 1.0;
+  
+      const rooms=[]; let attempts=0;
+      while(rooms.length<targetRooms && attempts<targetRooms*40){
+        attempts++;
+        const large = Math.random()<0.45;
+        const rw = large ? 10+rand(8) : 4+rand(4);
+        const rh = large ?  6+rand(5) : 3+rand(3);
+        const rx = 2+rand(Math.max(2,w-rw-4));
+        const ry = 2+rand(Math.max(2,h-rh-4));
+        const rect={x:rx,y:ry,w:rw,h:rh,cx:rx+Math.floor(rw/2),cy:ry+Math.floor(rh/2)};
+        let overlaps=false;
+        for(const r of rooms){
+          if(!(rect.x+rect.w+1<r.x || r.x+r.w+1<rect.x || rect.y+rect.h+1<r.y || r.y+r.h+1<rect.y)){ overlaps=true; break; }
+        }
+        if(!overlaps){ rooms.push(rect); this.carveRect(rect.x,rect.y,rect.x+rect.w,rect.y+rect.h); }
+      }
+  
+      const centers=rooms.map(r=>[r.cx,r.cy]);
+      function digL(ax,ay,bx,by){
+        let x=ax,y=ay;
+        while(x!==bx){ x += (bx>x)?1:-1; cells[id(x,y)]=0; }
+        while(y!==by){ y += (by>y)?1:-1; cells[id(x,y)]=0; }
+        cells[id(bx,by)]=0;
+      }
+      if(centers.length){
+        const N=centers.length; const used=new Array(N).fill(false); used[0]=true; let edges=0;
+        while(edges<N-1){
+          let bestA=-1,bestB=-1,bestD=1e9;
+          for(let a=0;a<N;a++) if(used[a]) for(let b=0;b<N;b++) if(!used[b]){
+            const dx=centers[a][0]-centers[b][0], dy=centers[a][1]-centers[b][1];
+            const d=dx*dx+dy*dy; if(d<bestD){ bestD=d; bestA=a; bestB=b; }
+          }
+          if(bestB===-1) break; used[bestB]=true; edges++;
+          digL(centers[bestA][0],centers[bestA][1], centers[bestB][0],centers[bestB][1]);
+        }
+        for(let k=0;k<extraConnect;k++){ const a=rand(N), b=rand(N); if(a!==b) digL(centers[a][0],centers[a][1], centers[b][0],centers[b][1]); }
+      }
+  
+      // odd-grid sparse carve
+      const odd = v => (v%2===1);
+      const inOddGrid=(x,y)=> x>1&&y>1&&x<w-2&&y<h-2&&odd(x)&&odd(y);
+      const dirs=[[2,0],[-2,0],[0,2],[0,-2]];
+      function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=(Math.random()*(i+1))|0; [a[i],a[j]]=[a[j],a[i]]; } return a; }
+  
+      function carveSparseFrom(sx,sy,stepsMax){
+        let steps=0; const st=[[sx,sy]]; cells[id(sx,sy)]=0;
+        while(st.length && steps<stepsMax){
+          const [cx,cy]=st[st.length-1];
+          let moved=false; const order=shuffle(dirs.slice());
+          for(const [dx,dy] of order){
+            const nx=cx+dx, ny=cy+dy;
+            if(inOddGrid(nx,ny) && cells[id(nx,ny)]===1){
+              cells[id(cx+dx/2,cy+dy/2)]=0; cells[id(nx,ny)]=0; st.push([nx,ny]); moved=true; steps++; break;
+            }
+          }
+          if(!moved) st.pop();
+        }
+      }
+      const seeds = carveSeeds;
+      for(let s=0;s<seeds;s++){
+        const sx= 3 + rand(Math.max(1, Math.floor((w-6)/2)))*2;
+        const sy= 3 + rand(Math.max(1, Math.floor((h-6)/2)))*2;
+        const stepsMax = Math.floor((w*h)*0.008 * carveStepMul);
+        if(inOddGrid(sx,sy)) carveSparseFrom(sx,sy,stepsMax);
+      }
+  
+      // keep largest region
+      const reg=new Array(w*h).fill(-1); let rid=0; const areas=[];
+      for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++) if(cells[id(x,y)]===0 && reg[id(x,y)]===-1){
+        const q=[[x,y]]; reg[id(x,y)]=rid; let a=0;
+        while(q.length){
+          const [qx,qy]=q.pop(); a++;
+          for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
+            const nx=qx+dx, ny=qy+dy, i=id(nx,ny);
+            if(nx>0&&ny>0&&nx<w-1&&ny<h-1 && cells[i]===0 && reg[i]===-1){ reg[i]=rid; q.push([nx,ny]); }
           }
         }
-        if(!moved) st.pop();
+        areas[rid]=a; rid++;
       }
-    }
-    const seeds = carveSeeds;
-    for(let s=0;s<seeds;s++){
-      const sx= 3 + rand(Math.max(1, Math.floor((w-6)/2)))*2;
-      const sy= 3 + rand(Math.max(1, Math.floor((h-6)/2)))*2;
-      const stepsMax = Math.floor((w*h)*0.008 * carveStepMul);
-      if(inOddGrid(sx,sy)) carveSparseFrom(sx,sy,stepsMax);
-    }
-
-    // keep largest region
-    const reg=new Array(w*h).fill(-1); let rid=0; const areas=[];
-    for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++) if(cells[id(x,y)]===0 && reg[id(x,y)]===-1){
-      const q=[[x,y]]; reg[id(x,y)]=rid; let a=0;
-      while(q.length){
-        const [qx,qy]=q.pop(); a++;
-        for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]){
-          const nx=qx+dx, ny=qy+dy, i=id(nx,ny);
-          if(nx>0&&ny>0&&nx<w-1&&ny<h-1 && cells[i]===0 && reg[i]===-1){ reg[i]=rid; q.push([nx,ny]); }
+      const best=areas.length?areas.indexOf(Math.max(...areas)):-1;
+      if(best>=0){
+        for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++){
+          if(reg[id(x,y)]!==best) cells[id(x,y)]=1;
         }
       }
-      areas[rid]=a; rid++;
+  
+      // widen if too cramped
+      const openCount=()=>cells.reduce((a,c)=>a+(c===0?1:0),0);
+      const floors=openCount(); const min=Math.floor(w*h*0.20);
+      if(floors<min){
+        for(let y=2;y<h-2;y++) for(let x=2;x<w-2;x++){
+          if(cells[id(x,y)]===1){
+            let n=0;
+            if(cells[id(x+1,y)]===0)n++;
+            if(cells[id(x-1,y)]===0)n++;
+            if(cells[id(x,y+1)]===0)n++;
+            if(cells[id(x,y-1)]===0)n++;
+            if(n>=3) cells[id(x,y)]=0;
+          }
+        }
+      }
+  
+      // hard borders
+      for(let x=0;x<w;x++){ cells[id(x,0)]=1; cells[id(x,h-1)]=1; }
+      for(let y=0;y<h;y++){ cells[id(0,y)]=1; cells[id(w-1,y)]=1; }
     }
-    const best=areas.length?areas.indexOf(Math.max(...areas)):-1; if(best>=0){ for(let y=1;y<h-1;y++) for(let x=1;x<w-1;x++) if(reg[id(x,y)]!==best) cells[id(x,y)]=1; }
-
-    // widen if too cramped
-    const openCount=()=>cells.reduce((a,c)=>a+(c===0?1:0),0); const floors=openCount(); const min=Math.floor(w*h*0.20);
-    if(floors<min){ for(let y=2;y<h-2;y++) for(let x=2;x<w-2;x++){ if(cells[id(x,y)]===1){ let n=0; if(cells[id(x+1,y)]===0)n++; if(cells[id(x-1,y)]===0)n++; if(cells[id(x,y+1)]===0)n++; if(cells[id(x,y-1)]===0)n++; if(n>=3) cells[id(x,y)]=0; } } }
-
-    // hard borders
-    for(let x=0;x<w;x++){ cells[id(x,0)]=1; cells[id(x,h-1)]=1; }
-    for(let y=0;y<h;y++){ cells[id(0,y)]=1; cells[id(w-1,y)]=1; }
   }
-}
+  
 
 /**********************
  * SPRITES
  **********************/
-const SPR = {};
+ const SPR = {};
+
+/* utils for sprite generation */
 function makeSprite(w, h, drawFn, scale = 1){
   const c = document.createElement('canvas');
-  c.width = Math.max(1, w * scale);
-  c.height = Math.max(1, h * scale);
+  c.width = Math.max(1, Math.round(w * scale));
+  c.height = Math.max(1, Math.round(h * scale));
   const g = c.getContext('2d');
   g.imageSmoothingEnabled = false;
   g.save(); g.scale(scale, scale); drawFn(g); g.restore();
@@ -620,7 +874,10 @@ function mirrorHalf(g, halfW, h, paintHalf){
 }
 function variantIndex(x,y){ const v = ((x*73856093) ^ (y*19349663)) >>> 0; return v & 3; }
 
-/* --- NEW: Old-school brick tiles (4 variants each) --- */
+/* Use 4-way variants for floor/wall tiles: floor0..floor3, wall0..wall3 */
+function tileName(base, x, y){ return base + (variantIndex(x,y)); }
+
+/* --- Old-school brick tiles (4 variants each) --- */
 function drawBrickTile(g, w=16, h=16, opts={}){
   const mortar = opts.mortar || '#2a211f';
   const brick1 = opts.brick1 || '#513329';
@@ -628,17 +885,16 @@ function drawBrickTile(g, w=16, h=16, opts={}){
   const hi     = opts.hi     || '#8a4b3a';
   // mortar base
   g.fillStyle = mortar; g.fillRect(0,0,w,h);
-  // brick rows: offset every other row for classic pattern
-  const rowH = 4;          // chunky rows
-  const brickW = 6;        // chunky bricks
+  // brick rows: offset every other row
+  const rowH = 4;
+  const brickW = 6;
   for(let y=0; y<h; y+=rowH){
     const offset = ((y/rowH)|0) % 2 ? Math.floor(brickW/2) : 0;
     for(let x=-offset; x<w; x+=brickW){
-      // brick body
       const col = Math.random()<0.5 ? brick1 : brick2;
       g.fillStyle = col;
       g.fillRect(x+1, y+1, brickW-2, rowH-2);
-      // slight highlight top edge (old sprite vibe)
+      // subtle highlight on top edge
       g.fillStyle = hi; g.globalAlpha = 0.12;
       g.fillRect(x+1, y+1, brickW-2, 1);
       g.globalAlpha = 1;
@@ -654,7 +910,7 @@ function drawBrickTile(g, w=16, h=16, opts={}){
 }
 
 function drawPaverTile(g, w=16, h=16, opts={}){
-  // floor: worn paver/bricks seen from top — larger cells, hairline mortar
+  // floor: worn pavers seen from top — larger cells, hairline mortar
   const mortar = opts.mortar || '#201916';
   const tileA  = opts.tileA  || '#3f2b26';
   const tileB  = opts.tileB  || '#4b332d';
@@ -668,9 +924,9 @@ function drawPaverTile(g, w=16, h=16, opts={}){
       const col = Math.random()<0.5 ? tileA : tileB;
       g.fillStyle = col;
       g.fillRect(x+1, y+1, cellW-2, cellH-2);
-      // small scuff/highlight
+      // scuff/highlight
       g.globalAlpha = 0.10; g.fillStyle = hi;
-      g.fillRect(x+1, y+1, cellW-3, 1);
+      g.fillRect(x+1, y+1, Math.max(1,cellW-3), 1);
       g.globalAlpha = 1;
     }
   }
@@ -678,12 +934,13 @@ function drawPaverTile(g, w=16, h=16, opts={}){
   g.globalAlpha = 0.18; g.fillStyle = '#1b1412';
   for(let i=0;i<3;i++){
     const sx = (Math.random()*w)|0, sy=(Math.random()*h)|0;
-    const len = 3 + (Math.random()*6)|0;
+    const len = 3 + ((Math.random()*6)|0);
     for(let k=0;k<len;k++) g.fillRect((sx+k)%w, (sy + ((Math.random()<0.5)?0:1))%h, 1, 1);
   }
   g.globalAlpha = 1;
 }
 
+/* Build all sprites once */
 function buildSprites(){
   const u = 12; // base unit; tiles scale them up to TILE_W/TILE_H
 
@@ -726,6 +983,7 @@ function buildSprites(){
     for(let y=9;y<12;y++){ if(y-1>=9) px(g,5,y-1, olive2); }
     px(g,3,11,'#232323'); px(g,6,11,'#232323');
   });
+
   // Enemy — drone
   SPR.enemy = makeSprite(10, u, (g)=>{
     const base='#6e1010', mid='#991b1b', hi='#ff3c3c', eye='#ffc04d';
@@ -738,6 +996,7 @@ function buildSprites(){
     for(let x=2;x<=7;x++) px(g,x,4, mid);
     px(g,2,6, base); px(g,7,6, base);
   });
+  
 
   // Ghost — paranoia
   SPR.ghost = makeSprite(10, u, (g)=>{
@@ -800,8 +1059,8 @@ function buildSprites(){
     px(g,3,3,'#58e07a'); px(g,2,3,'#2fad56'); px(g,4,3,'#2fad56');
   });
 
-  // --- NEW: generate 4 variants of floor/wall brick tiles ---
-  const wallOpts = { mortar:'#2a211f', brick1:'#513329', brick2:'#6a3b30', hi:'#8a4b3a' };
+  // --- 4 variants of floor/wall brick tiles ---
+  const wallOpts  = { mortar:'#2a211f', brick1:'#513329', brick2:'#6a3b30', hi:'#8a4b3a' };
   const floorOpts = { mortar:'#201916', tileA:'#3f2b26', tileB:'#4b332d', hi:'#a07a62' };
 
   for(let v=0; v<4; v++){
@@ -810,67 +1069,65 @@ function buildSprites(){
   }
 }
 
+/* Draw any sprite by name at tile coords (scaled to TILE_W/TILE_H) */
 function drawSprite(ctx, name, x, y, w=TILE_W, h=TILE_H){
   const img = SPR[name];
   if(!img) return;
-  const aspect = img.height / img.width;
-  const targetH = Math.min(h, w * aspect);
-  const oy = (h - targetH) * 0.5;
   ctx.imageSmoothingEnabled = false;
+  // Keep aspect of source sprite when fitting into target tile
+  const aspect = img.height / img.width;
+  const targetH = Math.min(h, Math.round(w * aspect));
+  const oy = (h - targetH) * 0.5;
   ctx.drawImage(img, x, y + oy, w, targetH);
 }
-function tileName(base, x, y){ return base + (variantIndex(x,y)); }
 
 /**********************
  * ENTITIES
  **********************/
-class Entity{ constructor(x,y,t){ this.x=x; this.y=y; this.type=t; this.hp=1; this.tx=x; this.ty=y; this.fast=false; } }
+class Entity{
+  constructor(x,y,t){ this.x=x; this.y=y; this.type=t; this.hp=1; this.tx=x; this.ty=y; this.fast=false; }
+}
 
 /**********************
  * GAME
  **********************/
-class Game{
-  constructor(){
-    this.canvas=document.getElementById('screen');
-    this.ctx=this.canvas.getContext('2d');
-    this.ctx.font=`${TILE_H}px 'VT323', monospace`;
-    this.ctx.textBaseline='top';
+ class Game{
+  constructor() {
+  this.canvas = document.getElementById('screen');
+  this.ctx = this.canvas.getContext('2d');
+  this.ctx.font = `${TILE_H}px 'VT323', monospace`;
+  this.ctx.textBaseline = 'top';
 
-    this.levelIndex=0; this.rng=new RNG();
-    this.keys=new Set();
-    this.last=0; this.lastMove=0; this.lastEnemy=0; this.lastShot=0;
-    this.flashT=0; this.flashColor=null; this.glitchT=0;
+  // Make canvas focusable so key events always work
+  this.canvas.setAttribute('tabindex', '0');
 
-    this.gunfireT = 0;
-    this.enemyInterval = ENEMY_COOLDOWN;
-    this.controlInvertT = 0;
-    this.trail = [];
-    this.collapseTimer = 0;
-    this.extractionCountdown = null;
-    this.sanityMul = 1.0;
-    this.levelTicks = 0;
-    this.sanityWarned = false;
-    this.rainSeed = Math.random()*1000;
-    this.staticSeed = Math.random()*1000;
-    this.state='play';
-    this.melt=null;
-    this.transitioning = false;
+  this.levelIndex = 0;
+  this.rng = new RNG();
+  this.keys = new Set();
+  this.last = 0; this.lastMove = 0; this.lastEnemy = 0; this.lastShot = 0;
+  this.flashT = 0; this.flashColor = null; this.glitchT = 0;
+  this.gunfireT = 0; this.enemyInterval = ENEMY_COOLDOWN;
+  this.controlInvertT = 0; this.trail = [];
+  this.collapseTimer = 0; this.extractionCountdown = null;
+  this.sanityMul = 1.0; this.levelTicks = 0; this.sanityWarned = false;
+  this.rainSeed = Math.random() * 1000; this.staticSeed = Math.random() * 1000;
+  this.state = 'play'; this.melt = null; this.transitioning = false;
 
-    // Proactively arm background music so round 1 plays on first gesture
-    if (window.KomAudio?.armAutoBackground) {
-      window.KomAudio.armAutoBackground({ gain: 0.65, fadeIn: 1.4 });
-    }
+  // Bind once
+  this.fitCanvas = this.fitCanvas.bind(this);
+  this._loop = this.loop.bind(this);
 
-    this.resetLevel();
-    this.bindInput();
+  this.resetLevel();
+  this.bindInput();
+  this.fitCanvas();
+  this.centerStage();
 
-    this.fitCanvas = this.fitCanvas.bind(this);
-    this.fitCanvas();
-    this.centerStage();
-    window.addEventListener('resize', ()=>{ this.centerStage(); });
-    window.addEventListener('resize', this.fitCanvas);
-    requestAnimationFrame(this.loop.bind(this));
-  }
+  window.addEventListener('resize', this.fitCanvas, { passive: true });
+  window.addEventListener('resize', () => this.centerStage(), { passive: true });
+
+  requestAnimationFrame(this._loop); // only one RAF loop
+}
+
 
   centerStage(){
     const container = document.querySelector('.view');
@@ -883,7 +1140,6 @@ class Game{
     const dpr = Math.max(1, Math.min(3, window.devicePixelRatio || 1));
     const rect = this.canvas.getBoundingClientRect();
     const w = Math.max(1, Math.floor(rect.width));
-    for(let i=0;i<1;i++){}
     const h = Math.max(1, Math.floor(rect.height));
     this.canvas.width = Math.floor(w * dpr);
     this.canvas.height = Math.floor(h * dpr);
@@ -891,13 +1147,17 @@ class Game{
     this.ctx.font = `${TILE_H}px 'VT323', monospace`;
     this.ctx.textBaseline = 'top';
   }
-  
-    resetLevel(){
+
+  resetLevel(){
+    // Stop lingering audio (one-shots/loops) between levels
     if (window.KomAudio) { try{ window.KomAudio.hardStopAll({ immediate:true }); }catch(e){} }
     const spec=LEVELS[this.levelIndex];
     this.levelTicks = 0;
     this.rainSeed = Math.random()*1000;
     this.staticSeed = Math.random()*1000;
+    try {
+  window.KomAudio.startBackground?.({ gain: 0.62, fadeIn: 0.9 });
+} catch {}
     // Map
     this.map=new Map(GRID_W,GRID_H);
     this.map.generate(this.rng.int(1e9), spec.complexity || {});
@@ -931,8 +1191,13 @@ class Game{
     }
 
     // Exit
-    let ex=px,ey=py,tries=0; do{ ex=2+rand(this.map.w-4); ey=2+rand(this.map.h-4); tries++; } while((Math.abs(ex-px)+Math.abs(ey-py)<24 || this.map.isWall(ex,ey)) && tries<2000); this.exit=ey*this.map.w+ex;
+    let ex=px,ey=py,tries=0;
+    do{
+      ex=2+rand(this.map.w-4); ey=2+rand(this.map.h-4); tries++;
+    } while((Math.abs(ex-px)+Math.abs(ey-py)<24 || this.map.isWall(ex,ey)) && tries<2000);
+    this.exit=ey*this.map.w+ex;
 
+    // Guarantee at least one diamond if configured
     if(this.diamonds.size===0 && diamondTarget>0){
       const fallback=[[2,0],[-2,0],[0,2],[0,-2],[3,0],[0,3],[-3,0],[0,-3],[4,0],[0,4]];
       for(const [fx,fy] of fallback){
@@ -999,11 +1264,17 @@ class Game{
         attempts++;
         const x=2+rand(this.map.w-4), y=2+rand(this.map.h-4);
         const i=y*this.map.w+x;
-        if(this.map.isWall(x,y)||i===this.exit||this.diamonds.has(i)|| this.mines.has(i) || this.seeds.has(i) || (x===this.player.x&&y===this.player.y) || this.entities.some(e=>e.x===x&&e.y===y) || this.decor.has(i)) continue;
+        if(this.map.isWall(x,y)||i===this.exit||this.diamonds.has(i)||
+           this.mines.has(i) || this.seeds.has(i) ||
+           (x===this.player.x&&y===this.player.y) ||
+           this.entities.some(e=>e.x===x&&e.y===y) || this.decor.has(i)) continue;
         this.decor.set(i,sprite); placed++;
       }
     };
     const levelKey=spec.key; if(levelKey==='jungle'||levelKey==='paranoia'){ placeDecor(16,'palm'); }
+    if (levelKey === 'reality' || levelKey === 'jungle' || levelKey === 'paranoia') {
+  placeDecor(16, 'palm');
+}
 
     // Paranoia phantoms (always on)
     if(spec.key==='paranoia'){
@@ -1037,11 +1308,12 @@ class Game{
     if(window.KomAudio){ window.KomAudio.playDeployment(); }
     this.state='play'; this.melt=null;
 
-    // Start/continue background loop
-    if(window.KomAudio){ window.KomAudio.startBackground({ gain:0.65, fadeIn:1.4 }); }
   }
 
-  pickNewPatrol(e){ let tx,ty; do{ tx=rand(this.map.w); ty=rand(this.map.h); } while(this.map.isWall(tx,ty)); e.tx=tx; e.ty=ty; }
+  pickNewPatrol(e){
+    let tx,ty; do{ tx=rand(this.map.w); ty=rand(this.map.h); } while(this.map.isWall(tx,ty));
+    e.tx=tx; e.ty=ty;
+  }
 
   bindInput(){
     window.addEventListener('keydown',(e)=>{
@@ -1054,6 +1326,24 @@ class Game{
       this.keys.add(k);
     });
     window.addEventListener('keyup',(e)=>{ this.keys.delete(e.key.toLowerCase()); });
+
+    // Also unlock on pointer/touch once
+    const unlock = ()=> {
+      if (window.KomAudio && !this._audioUnlocked) {
+        this._audioUnlocked = true;
+        window.KomAudio.resume(true)?.then(()=>{
+          window.KomAudio.startBackground({ gain: 0.65, fadeIn: 1.0 });
+        });
+      }
+      ['pointerdown','mousedown','touchstart'].forEach(ev=>{
+        window.removeEventListener(ev, unlock, { passive:true });
+        document.removeEventListener(ev, unlock, { passive:true });
+      });
+    };
+    ['pointerdown','mousedown','touchstart'].forEach(ev=>{
+      window.addEventListener(ev, unlock, { once:true, passive:true });
+      document.addEventListener(ev, unlock, { once:true, passive:true });
+    });
   }
 
   canStep(x,y){ return this.map.inb(x,y) && !this.map.isWall(x,y); }
@@ -1231,45 +1521,45 @@ class Game{
   }
 
   render(){
-  const ctx = this.ctx;
-  const spec = LEVELS[this.levelIndex];
-  const pal  = PALETTES[spec.key];
+    const ctx = this.ctx;
+    const spec = LEVELS[this.levelIndex];
+    const pal  = PALETTES[spec.key];
 
-  if (this.state === 'melting'){ return; }
-  if (this.state === 'gameover'){ this.renderGameOver(); return; }
+    if (this.state === 'melting'){ return; }
+    if (this.state === 'gameover'){ this.renderGameOver(); return; }
 
-  const viewW = this.canvas.width;
-  const viewH = this.canvas.height;
-  const portrait = isPortraitMobile();
-  // Treat widths <=860px as mobile screens for zooming
-  const __IS_MOBILE_WIDTH = window.matchMedia('(max-width: 860px)').matches;
+    const viewW = this.canvas.width;
+    const viewH = this.canvas.height;
+    const portrait = isPortraitMobile();
+    // Treat widths <=860px as mobile screens for zooming
+    const __IS_MOBILE_WIDTH = window.matchMedia('(max-width: 860px)').matches;
 
-  // reset and paint bg
-  ctx.setTransform(1,0,0,1,0,0);
-  ctx.imageSmoothingEnabled = false;
-  ctx.fillStyle = pal.bg;
-  ctx.fillRect(0,0,viewW,viewH);
+    // reset and paint bg
+    ctx.setTransform(1,0,0,1,0,0);
+    ctx.imageSmoothingEnabled = false;
+    ctx.fillStyle = pal.bg;
+    ctx.fillRect(0,0,viewW,viewH);
 
-  ctx.save();
+    ctx.save();
 
-  const baseScale = portrait ? Math.min(viewH / WORLD_W, viewW / WORLD_H)
-                           : Math.min(viewW / WORLD_W, viewH / WORLD_H);
-const scale = baseScale * VIEW_ZOOM;
+    const baseScale = portrait ? Math.min(viewH / WORLD_W, viewW / WORLD_H)
+                              : Math.min(viewW / WORLD_W, viewH / WORLD_H);
+    const scale = baseScale * VIEW_ZOOM;
 
-// Camera in world pixels, center on player, clamp to world bounds
-const viewWorldW = viewW / scale;
-const viewWorldH = viewH / scale;
-const playerPx = this.player.x * TILE_W + TILE_W / 2;
-const playerPy = this.player.y * TILE_H + TILE_H / 2;
-const camX = clamp(playerPx, viewWorldW / 2, WORLD_W - viewWorldW / 2);
-const camY = clamp(playerPy, viewWorldH / 2, WORLD_H - viewWorldH / 2);
+    // Camera in world pixels, center on player, clamp to world bounds
+    const viewWorldW = viewW / scale;
+    const viewWorldH = viewH / scale;
+    const playerPx = this.player.x * TILE_W + TILE_W / 2;
+    const playerPy = this.player.y * TILE_H + TILE_H / 2;
+    const camX = clamp(playerPx, viewWorldW / 2, WORLD_W - viewWorldW / 2);
+    const camY = clamp(playerPy, viewWorldH / 2, WORLD_H - viewWorldH / 2);
 
-ctx.translate(viewW / 2, viewH / 2);
-if (portrait){ ctx.rotate(Math.PI / 2); }
-ctx.scale(scale, scale);
-ctx.translate(-camX, -camY);
+    ctx.translate(viewW / 2, viewH / 2);
+    if (portrait){ ctx.rotate(Math.PI / 2); }
+    ctx.scale(scale, scale);
+    ctx.translate(-camX, -camY);
 
-  // ===== draw everything from here in world space (0..WORLD_W/H) =====
+    // ===== draw everything from here in world space (0..WORLD_W/H) =====
 
     // Ambient bg
     if(spec.key==='reality'){
@@ -1317,17 +1607,17 @@ ctx.translate(-camX, -camY);
         if(isWall){
           const alpha = visible ? 1 : (seen ? 0.7 : 0.38);
           ctx.globalAlpha = alpha;
-          drawSprite(ctx, tileName('wall',x,y), sx, sy, TILE_W, TILE_W);
+          drawSprite(ctx, tileName('wall',x,y),  sx, sy, TILE_W, TILE_H);
           if(pal.wallTint){ ctx.fillStyle = pal.wallTint; ctx.fillRect(sx, sy, TILE_W, TILE_H); }
           // subtle bevels
-          if(y>0 && !this.map.isWall(x,y-1)){ ctx.globalAlpha = 0.11; ctx.fillStyle = 'rgba(255,245,210,1)'; ctx.fillRect(sx, sy, TILE_W, 2); }
+          if(y>0 && !this.map.isWall(x,y-1)){ ctx.globalAlpha = 0.14; ctx.fillStyle = 'rgba(255,245,210,1)'; ctx.fillRect(sx, sy, TILE_W, 2); }
           if(x>0 && !this.map.isWall(x-1,y)){ ctx.globalAlpha = 0.22; ctx.fillStyle = 'rgba(0,0,0,1)'; ctx.fillRect(sx, sy, 2, TILE_H); }
           if(y<this.map.h-1 && !this.map.isWall(x,y+1)){ ctx.globalAlpha = 0.25; ctx.fillStyle = 'rgba(0,0,0,1)'; ctx.fillRect(sx, sy+TILE_H-2, TILE_W, 2); }
           ctx.globalAlpha = 1;
         } else {
           const explored = visible || seen;
           ctx.globalAlpha = explored ? 1 : 0.4;
-          drawSprite(ctx, tileName('floor',x,y), sx, sy, TILE_W, TILE_W);
+          drawSprite(ctx, tileName('floor',x,y), sx, sy, TILE_W, TILE_H);
           if(pal.floorTint){ ctx.fillStyle = pal.floorTint; ctx.fillRect(sx, sy, TILE_W, TILE_H); }
           ctx.globalAlpha = 1;
 
@@ -1390,12 +1680,10 @@ ctx.translate(-camX, -camY);
     // Entities
     for(const e of this.entities){
       if(e.type==='jack'){
-        {
-  const pressing = this.keys.has('arrowup')||this.keys.has('arrowdown')||this.keys.has('arrowleft')||this.keys.has('arrowright')||this.keys.has('w')||this.keys.has('a')||this.keys.has('s')||this.keys.has('d');
-  const alt = ((Math.floor((this.levelTicks||0)/140) % 2) === 1);
-  const sprite = (pressing && alt) ? 'commando_walk' : 'commando';
-  drawSprite(ctx, sprite, e.x*TILE_W, e.y*TILE_H, TILE_W, TILE_H);
-}
+        const pressing = this.keys.has('arrowup')||this.keys.has('arrowdown')||this.keys.has('arrowleft')||this.keys.has('arrowright')||this.keys.has('w')||this.keys.has('a')||this.keys.has('s')||this.keys.has('d');
+        const alt = ((Math.floor((this.levelTicks||0)/140) % 2) === 1);
+        const sprite = (pressing && alt) ? 'commando_walk' : 'commando';
+        drawSprite(ctx, sprite, e.x*TILE_W, e.y*TILE_H, TILE_W, TILE_H);
       } else {
         drawSprite(ctx, 'enemy', e.x*TILE_W, e.y*TILE_H, TILE_W, TILE_H);
       }
@@ -1431,12 +1719,11 @@ ctx.translate(-camX, -camY);
       const drift = (this.levelTicks || 0) * 0.35 + (this.rainSeed || 0);
       for(let i=0;i<drops;i++){ const x = Math.random()*WORLD_W; const y = (Math.random()*WORLD_H + drift + i*11) % WORLD_H; ctx.moveTo(x, y); ctx.lineTo(x + 0.6, y + 8); }
       ctx.stroke();
-      ctx.globalAlpha = 0.22; ctx.fillStyle = 'rgba(20,30,40,0.35)'; ctx.fillRect(0, WORLD_H-6, WORLD_W, 6); ctx.globalAlpha = 1;
+      ctx.globalAlpha = 0.22; ctx.fillStyle = 'rgba(20,30,40,0.35)'; ctx.fillRect(0, WORLD_H-6, WORLD_H*2, 6); ctx.globalAlpha = 1;
     }
 
     if(spec.key==='psychosis'){
       if(this.sanity<75 && Math.random()<0.05){ ctx.globalAlpha = 0.07; ctx.fillStyle = PALETTES.psychosis.flash; ctx.fillRect(0,0,WORLD_W,WORLD_H); ctx.globalAlpha=1; }
-      // REMOVED vertical CRT tear lines here
       ctx.globalAlpha = 0.08;
       for(let i=0;i<4;i++){ const bx = Math.random()*WORLD_W; const bw = 1 + Math.random()*2; ctx.fillStyle = 'rgba(240,240,240,0.35)'; ctx.fillRect(bx, Math.random()*WORLD_H, bw, 1); }
       ctx.globalAlpha = 1;
@@ -1521,15 +1808,24 @@ ctx.translate(-camX, -camY);
   }
 
   updateHUD(){
-    document.getElementById('sanityBar').style.width=`${this.sanity}%`;
-    document.getElementById('sanityPct').textContent=`${this.sanity|0}%`;
-    const spec=LEVELS[this.levelIndex];
-    const diamondTotal = this.diamondGoal ?? spec.diamonds;
-    const diamondCollected = Math.max(0, diamondTotal - this.diamonds.size);
-    document.getElementById('diamonds').textContent = `${diamondCollected}/${diamondTotal}`;
-    document.getElementById('exitState').textContent=this.diamonds.size===0? 'Unlocked' : 'Locked';
-    document.getElementById('seedsCount').textContent = `✚${this.seeds.size}`;
-  }
+  const bar = document.getElementById('sanityBar');
+  const pct = document.getElementById('sanityPct');
+  if (bar) bar.style.width = `${this.sanity}%`;
+  if (pct) pct.textContent = `${this.sanity|0}%`;
+
+  const spec=LEVELS[this.levelIndex];
+  const diamondTotal = this.diamondGoal ?? spec.diamonds;
+  const diamondCollected = Math.max(0, diamondTotal - this.diamonds.size);
+
+  const diamondsEl = document.getElementById('diamonds');
+  const exitEl = document.getElementById('exitState');
+  const seedsEl = document.getElementById('seedsCount');
+
+  if (diamondsEl) diamondsEl.textContent = `${diamondCollected}/${diamondTotal}`;
+  if (exitEl) exitEl.textContent = this.diamonds.size===0 ? 'Unlocked' : 'Locked';
+  if (seedsEl) seedsEl.textContent = `${this.seeds.size}`;
+}
+
 
   loop(ts){
     const dt = this.last ? (ts - this.last) : 16; this.last = ts; this.levelTicks += dt;
@@ -1570,6 +1866,7 @@ ctx.translate(-camX, -camY);
       if(this.extractionCountdown!==null){
         this.extractionCountdown -= dt;
         if(this.extractionCountdown<=0){ log('Extraction window missed.'); this.startMelt(); }
+        requestAnimationFrame(this._loop);       // reuse
       }
     }
 
@@ -1582,7 +1879,7 @@ ctx.translate(-camX, -camY);
         log('Extraction complete. Exiting.');
         setTimeout(() => { window.location.href = 'endgame.html'; }, 350);
       } else {
-        // NEW: level-up SFX on door crossing
+        // Level-up SFX on door crossing
         if (window.KomAudio) { window.KomAudio.playLevelUp(); }
         log('Extraction point reached. Descending.');
         setTimeout(() => {
@@ -1602,34 +1899,8 @@ ctx.translate(-camX, -camY);
 }
 
  /**********************
- * BOOT
+ * Virtual joystick — focuses canvas and emits Arrow + WASD
  **********************/
-buildSprites();
-const game = new Game();
-window.Kommando = {
-  setPalette(key){
-    const idx = LEVELS.findIndex(l => l.key === key);
-    if (idx >= 0) { game.levelIndex = idx; game.resetLevel(); }
-  }
-};
-
-/**********************
- * SELF TEST
- **********************/
-(function runTests(){
-  try{
-    const m=new Map(60,30);
-    m.generate(12345, { rooms:12, connectors:3, carveSeeds:2, carveStepMul:1.3 });
-    const vis=computeFOV({w:60,h:30,isWall:(x,y)=>false}, 30,15,6);
-    console.assert(vis.size>1,'fov ok');
-    console.log('TEST OK');
-  }catch(err){ console.error(err); }
-})();
-
-</script>
-
-<script>
-/* Virtual joystick — focuses canvas and emits Arrow + WASD */
 (function(){
   const stick  = document.getElementById('stick');
   const nub    = document.getElementById('stickNub');
@@ -1741,9 +2012,20 @@ window.Kommando = {
 
   // Mouse (desktop testing)
   let md = false;
-  stick.addEventListener('mousedown', (e)=>{ md=true; const p=posFromEvent(e); if(p){ nub.style.transform=`translate(${p.px}px,${p.py}px)`; setKeys(p.nx,p.ny);} canvas.focus(); });
-  window.addEventListener('mousemove', (e)=>{ if(!md) return; const p=posFromEvent(e); if(p){ nub.style.transform=`translate(${p.px}px,${p.py}px)`; setKeys(p.nx,p.ny);} });
-  window.addEventListener('mouseup', ()=>{ if(md){ md=false; reset(); } });
+  stick.addEventListener('mousedown', (e)=>{
+    md=true;
+    const p=posFromEvent(e);
+    if(p){ nub.style.transform=`translate(${p.px}px,${p.py}px)`; setKeys(p.nx,p.ny); }
+    canvas.focus({preventScroll:true});
+  });
+  window.addEventListener('mousemove', (e)=>{
+    if(!md) return;
+    const p=posFromEvent(e);
+    if(p){ nub.style.transform=`translate(${p.px}px,${p.py}px)`; setKeys(p.nx,p.ny); }
+  });
+  window.addEventListener('mouseup', ()=>{
+    if(md){ md=false; reset(); }
+  });
 
   // Prevent page scroll while using joystick
   ['touchstart','touchmove'].forEach(t=>{
@@ -1751,7 +2033,5 @@ window.Kommando = {
   });
 })();
 </script>
-
- 
 </body>
 </html>
