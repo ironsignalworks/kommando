@@ -5,59 +5,68 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <title>KOMMANDO — FOG OF WAR</title>
 
-  <link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=VT323&display=swap" rel="stylesheet">
-  <link rel="icon" href="./favicon.ico" />
-  
-<!-- Primary SEO -->
-  <meta name="title" content="KOMMANDO — Fog of War" />
-  <meta name="description" content="Dive into real-time caverns where every step echoes madness. Tactical pixel warfare meets paranoia in a collapsing underground world. Welcome to the Fog of War." />
-  <meta name="keywords" content="kommando, fog of war, Catastrophic Labs, pixel roguelite, tactical shooter, retro arcade, browser game, real-time caverns, paranoia, extraction" />
-  <meta name="author" content="Catastrophic Labs" />
-  <link rel="canonical" href="https://ironsignalworks.github.io/kommando/" />
-  
-  <!-- Open Graph -->
-  <meta property="og:title" content="KOMMANDO — Fog of War" />
-  <meta property="og:description" content="Dive into real-time caverns where every step echoes madness. Tactical pixel warfare meets paranoia in a collapsing underground world. Welcome to the Fog of War." />
-  <meta property="og:image" content="https://ironsignalworks.github.io/kommando/card.jpg" />
-  <meta property="og:image:type" content="image/jpeg" />
-  <meta property="og:image:alt" content="KOMMANDO — Fog of War preview image" />
-  <meta property="og:url" content="https://ironsignalworks.github.io/kommando/" />
-  <meta property="og:type" content="website" />
-  <meta property="og:site_name" content="Catastrophic Labs" />
-  
-  <!-- Twitter -->
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="KOMMANDO — Fog of War" />
-  <meta name="twitter:description" content="Dive into real-time caverns where every step echoes madness. Tactical pixel warfare meets paranoia in a collapsing underground world. Welcome to the Fog of War." />
-  <meta name="twitter:image" content="https://ironsignalworks.github.io/kommando/card.jpg" />
-  <meta name="twitter:image:alt" content="KOMMANDO — Fog of War preview image" />
-  <!-- If you have an official handle, add it: -->
-  <!-- <meta name="twitter:creator" content="@CatastrophicLabs" /> -->
-  
-  <!-- Nice-to-haves -->
-  <meta name="theme-color" content="#0a1208" />
-  <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="mobile-web-app-capable" content="yes" />
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=VT323&display=swap" rel="stylesheet">
+<link rel="icon" href="./favicon.ico" />
 
-  <script defer src="audio.js"></script>
+<!-- Primary SEO -->
+<meta name="title" content="KOMMANDO — Fog of War" />
+<meta name="description" content="Dive into real-time caverns where every step echoes madness. Tactical pixel warfare meets paranoia in a collapsing underground world. Welcome to the Fog of War." />
+<meta name="keywords" content="kommando, fog of war, Catastrophic Labs, pixel roguelite, tactical shooter, retro arcade, browser game, real-time caverns, paranoia, extraction" />
+<meta name="author" content="Catastrophic Labs" />
+<link rel="canonical" href="https://ironsignalworks.github.io/kommando/" />
+
+<!-- Open Graph -->
+<meta property="og:title" content="KOMMANDO — Fog of War" />
+<meta property="og:description" content="Dive into real-time caverns where every step echoes madness. Tactical pixel warfare meets paranoia in a collapsing underground world. Welcome to the Fog of War." />
+<meta property="og:image" content="https://ironsignalworks.github.io/kommando/card.jpg" />
+<meta property="og:image:type" content="image/jpeg" />
+<meta property="og:image:alt" content="KOMMANDO — Fog of War preview image" />
+<meta property="og:url" content="https://ironsignalworks.github.io/kommando/" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="Catastrophic Labs" />
+
+<!-- Twitter -->
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="KOMMANDO — Fog of War" />
+<meta name="twitter:description" content="Dive into real-time caverns where every step echoes madness. Tactical pixel warfare meets paranoia in a collapsing underground world. Welcome to the Fog of War." />
+<meta name="twitter:image" content="https://ironsignalworks.github.io/kommando/card.jpg" />
+<meta name="twitter:image:alt" content="KOMMANDO — Fog of War preview image" />
+
+<!-- Nice-to-haves -->
+<meta name="theme-color" content="#0b120c" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+
+<script defer src="audio.js"></script>
 
 <style>
+  /* =========================================================================
+     HUD THEME — aligned with game UI
+     ========================================================================= */
   :root{
-    --bg:#051307;
-    --hud:#0c1707;
-    --hud2:#081106;
-    --hud-border:#1d2c19;
+    --bg:#0b120c;
+    --surface:#0e1b12;
+    --surface-2:#0a150e;
+    --border:#1d2c19;
     --hud-hi:rgba(255,255,200,.05);
     --hud-lo:rgba(0,0,0,.45);
-    --ink:#d1d725;
-    --ink-soft:rgba(209,215,37,.78);
-    --muted:#7ea05d;
+
+    --ink:#d7f27c;
+    --ink-soft:rgba(215,242,124,.78);
+    --muted:rgba(180,220,120,.58);
     --accent:#7efc6b;
+    --accent-2:#9bff8d;
+
     --col-gap: 18px;
     --left-max: 580px;
+
     --type-ms: 24;
     --reveal-ms: 1200;
+
+    --glow-soft: 0 0 36px rgba(126,252,107,.18);
+    --glow-strong: 0 0 46px rgba(126,252,107,.28);
   }
+
   html,body{height:100%; overflow:hidden;}
   body{
     margin:0; background:var(--bg); color:var(--ink);
@@ -69,60 +78,67 @@
   .frame{
     width:min(980px, 96vw);
     height:min(560px, 90svh);
-    background:var(--hud); position:relative; overflow:hidden;
-    border:4px solid var(--hud-border);
+    background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
+    position:relative; overflow:hidden;
+    border:4px solid var(--border);
     box-shadow: inset 0 2px 0 var(--hud-hi), inset 0 -2px 0 var(--hud-lo);
+    border-radius:10px;
+
     display:grid;
     grid-template-columns: minmax(340px, var(--left-max)) minmax(240px, 1fr);
     gap:var(--col-gap);
-    padding:18px 18px 44px 18px;
+    padding:18px 18px 52px 18px;
     align-items:start;
     box-sizing:border-box;
   }
   .frame::before{
     content:""; position:absolute; inset:10px; border:2px solid rgba(20,40,18,0.85);
     pointer-events:none; box-shadow: inset 0 1px 0 rgba(255,255,220,0.05);
+    border-radius:6px;
   }
   .frame > *{ position:relative; z-index:1; }
 
+  /* LEFT TEXT PANEL */
   .left{
     align-self:start;
     padding:0 10px 0 0;
     font-family:'Special Elite','VT323',monospace;
     font-variant-ligatures:none;
-    font-size: clamp(14px, 1.4vw, 18px);
+    font-size: clamp(12px, 1.3vw, 17px);
     line-height:1.28;
     letter-spacing:.01em;
     color:var(--ink);
   }
   .kicker{
     color:var(--muted);
-    font-size:.9em;
-    margin:0 0 5px 0;
+    font-size:.95em;
+    margin:0 0 6px 0;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
   }
-  .block{ margin:3px 0 3px; white-space:pre-wrap; color:var(--ink-soft); }
-  .sep{ opacity:.4; margin:2px 0 }
+  .block{ margin:4px 0 4px; white-space:pre-wrap; color:var(--ink-soft); }
+  .sep{ opacity:.38; margin:2px 0; color:var(--ink-soft) }
 
+  /* RIGHT ASCII PANEL */
   .right{
     position:relative; overflow:hidden;
-    border-left:2px solid var(--hud-border);
+    border-left:2px solid var(--border);
     padding-left:var(--col-gap);
     align-self:start;
     height:min(100%, 380px);
     max-height:380px;
     min-height:210px;
-    background:var(--hud2);
+    background: linear-gradient(180deg, #0c170f 0%, #0a150e 100%);
     box-shadow: inset 0 2px 0 rgba(0,0,0,.35);
+    border-radius:6px;
   }
-
   canvas{ position:absolute; inset:0; display:block }
 
+  /* CTA */
   .cta{
-    position:fixed;
+    position:absolute;
     left:50%;
-    top:90%;
-    transform:translate(-50%, -50%);
+    bottom: 10px;
+    transform:translateX(-50%);
     z-index:5;
     pointer-events:none;
   }
@@ -131,50 +147,56 @@
   .btn{
     display:inline-block;
     text-decoration:none; cursor:pointer;
-    border:2px solid var(--hud-border); color:var(--ink);
-    background:#102110;
+    border:2px solid var(--border); color:var(--ink);
+    background: linear-gradient(180deg, var(--surface) 0%, var(--surface-2) 100%);
     font-family:'VT323', monospace;
-    font-size: clamp(11px, 1.3vw, 13px);
-    letter-spacing:.04em; padding:.45rem .75rem; border-radius:7px;
-    box-shadow:0 0 0 1px rgba(24,48,22,.7) inset, 0 0 14px rgba(126,252,107,.14);
-    transition: transform .12s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease, color .12s ease;
+    font-size: clamp(12px, 1.6vw, 16px);
+    letter-spacing:.06em; padding:.55rem .9rem; border-radius:10px;
+    margin-bottom: 30px;
+    box-shadow:0 0 0 1px rgba(24,48,22,.7) inset, var(--glow-soft);
+    transition: transform .12s ease, box-shadow .12s ease, background .12s ease, border-color .12s ease, color .12s ease, text-shadow .12s ease;
   }
   .btn:hover, .btn:focus-visible{
     outline:none; transform:translateY(-1px);
-    border-color:#8cf874; background:#183118; color:#f6ffda;
-    box-shadow:0 0 0 1px rgba(46,92,40,.7) inset, 0 0 24px rgba(126,252,107,.22);
+    border-color:var(--accent); background: linear-gradient(180deg, #142814 0%, #112311 100%);
+    color:#f6ffda;
+    box-shadow:0 0 0 1px rgba(46,92,40,.7) inset, var(--glow-strong), 0 0 0 4px rgba(32,88,20,.32);
+    text-shadow:0 0 12px rgba(126,252,107,.35);
+  }
+  .btn:active{
+    transform:none;
+    background: linear-gradient(180deg, #112311 0%, #0d1c0f 100%);
   }
 
   .meta{
     position:absolute; right:14px; bottom:14px; opacity:.55;
-    font-size:9px; letter-spacing:.05em; white-space:nowrap;
+    font-size:10px; letter-spacing:.05em; white-space:nowrap;
     color:var(--ink-soft);
+    user-select:none;
   }
 
   @media (max-height: 560px){ .meta{ display:none; } }
-  
-  /* Mobile layout: stack panels and enlarge ASCII area */
+
+  /* Mobile layout: stack panels */
   @media (max-width: 600px){
     .frame{
       grid-template-columns: 1fr;
       grid-auto-rows: auto;
       height:min(640px, 92svh);
-      padding:12px 12px 40px;
+      padding:12px 12px 48px;
       gap:12px;
     }
-    .left{
-      font-size: clamp(13px, 3.6vw, 17px);
-    }
+    .left{ font-size: clamp(13px, 3.6vw, 17px); }
     .right{
       border-left:none;
-      border-top:2px solid var(--hud-border);
+      border-top:2px solid var(--border);
       padding-left:0;
       padding-top:12px;
-      min-height: 40svh;
-      height: clamp(280px, 48svh, 440px);
+      min-height: 42svh;
+      height: clamp(280px, 50svh, 460px);
       max-height:none;
     }
-    .cta{ top:auto; bottom: 12px; transform: translate(-50%, 0); }
+    .cta{ bottom: 8px; }
   }
 </style>
 </head>
@@ -194,13 +216,14 @@
       <div class="block" data-type>
 You wake in a room you don’t remember.  
 The walls hum with static.  
-Rain leaks through the ceiling — it smells like cordite and rot.
+Rain leaks through the ceiling.
+It smells like cordite and rot.
       </div>
       <div class="block" data-type>
 Orders loop on the CRT:
-— CLEAN THE STREETS  
-— PURGE THE JUNGLE  
-— ELIMINATE HOSTILES
+> CLEAN THE STREETS  
+> PURGE THE JUNGLE  
+> ELIMINATE HOSTILES
       </div>
       <div class="block" data-type>
 But the streets are empty.  
@@ -208,8 +231,8 @@ And the jungle is growing through the concrete.
       </div>
       <div class="block" data-type>
 Your rifle is still warm.
-
-Welcome back, soldier.  
+Welcome back, soldier.
+      <div class="sep">────────────</div>
 DESCEND INTO MEMORY.
       </div>
     </section>
@@ -279,6 +302,7 @@ DESCEND INTO MEMORY.
   </main>
 
 <script>
+  // Ensure WebAudio unlock & arm background later if needed
   (function(){
     const unlock = () => {
       if (window.KomAudio && typeof window.KomAudio.resume === 'function') {
@@ -292,7 +316,7 @@ DESCEND INTO MEMORY.
 
 <script>
 (() => {
-  /* Typewriter (tight) */
+  /* Typewriter */
   const blocks = [...document.querySelectorAll('[data-type]')];
   const base = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--type-ms')) || 24;
   let delay = 0;
@@ -306,7 +330,7 @@ DESCEND INTO MEMORY.
     delay += normalized.length * base + 260;
   });
 
-  /* ASCII: centered layout, integer line steps, 1:1 CSS pixels */
+  /* ASCII: 1:1 CSS pixels + themed color */
   const cvs = document.getElementById('asciiCanvas');
   const ctx = cvs.getContext('2d');
   const artRaw = document.getElementById('asciiArt').textContent; // keep trailing spaces
@@ -314,7 +338,6 @@ DESCEND INTO MEMORY.
 
   function fit(){
     const rect = cvs.parentElement.getBoundingClientRect();
-    // 1:1 CSS pixels — no DPR scaling (prevents fractional rounding drift)
     cvs.width = Math.max(1, Math.floor(rect.width));
     cvs.height = Math.max(1, Math.floor(rect.height));
     cvs.style.width = rect.width + 'px';
@@ -330,7 +353,6 @@ DESCEND INTO MEMORY.
     const rows = lines.length;
     const w = cvs.width, h = cvs.height;
 
-    // Fit with margins; integer px
     const marginCols = 4, marginRows = 4;
     let px = Math.floor(
       Math.min(
@@ -339,7 +361,6 @@ DESCEND INTO MEMORY.
       )
     );
     px = Math.max(7, Math.min(px, 16));
-    // If narrow viewport, bump min/max a bit for readability
     if (window.matchMedia && window.matchMedia('(max-width: 600px)').matches) {
       px = Math.max(9, Math.min(px, 18));
     }
@@ -347,9 +368,9 @@ DESCEND INTO MEMORY.
     ctx.font = `${px}px "VT323", monospace`;
     ctx.textBaseline = 'top';
     ctx.textAlign = 'left';
-    ctx.fillStyle = '#e6e6e6';
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim() || '#cfe6a0';
 
-    const lineH = Math.max(1, Math.round(px * 1.1));  // integer line advance
+    const lineH = Math.max(1, Math.round(px * 1.1));
     const charW = ctx.measureText('M').width || px;
     const blockW = charW * cols;
     const blockH = lineH * rows;
@@ -357,14 +378,13 @@ DESCEND INTO MEMORY.
     const top  = Math.max(10, Math.round((h - blockH) / 2));
 
     const revealCols = Math.floor(cols * tNorm);
-
     for(let r=0; r<rows; r++){
       const line = lines[r] || '';
       const slice = line.slice(0, revealCols);
       if(slice) ctx.fillText(slice, left, top + r*lineH);
     }
 
-    // subtle scanlines (optional; comment out if you want)
+    // Subtle scanlines
     ctx.globalAlpha = 0.06;
     ctx.fillStyle = '#ffffff';
     for(let y=0; y<h; y+=3) ctx.fillRect(0,y,w,1);
@@ -381,6 +401,8 @@ DESCEND INTO MEMORY.
   }
   requestAnimationFrame(tick);
   addEventListener('resize', () => { fit(); start = performance.now(); requestAnimationFrame(tick); }, {passive:true});
+
+  // Play deployment sting on load (matches other intro)
   (function(){
     const fire = () => { if (window.KomAudio) window.KomAudio.playDeployment(); };
     if (document.readyState === 'complete' || document.readyState === 'interactive') {
