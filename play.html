@@ -50,239 +50,252 @@
   };
 </script>
 <style>
-  /* =========================
-     ROOT THEME & GLOBAL BASE
-     ========================= */
-  :root{
-    --bg:#051307;
-    --ink:#d1d725;
-    --ink-soft:rgba(209,215,37,.78);
-    --hud:#0c1707;
-    --hud2:#081106;
-    --hud-border:#1d2c19;
-    --hud-hi:rgba(255,255,200,.05);
-    --hud-lo:rgba(0,0,0,.45);
-    --accent:#7efc6b; 
-    --danger:#ff5050;
-  }
-  
-  html, body { height:100%; }
-  body{
-    margin:0;
-    background:var(--bg);
-    color:var(--ink);
-    font-family:'VT323', ui-monospace, Menlo, Consolas, monospace;
-    overflow:hidden;
-  }
-  
-  /* =========================
-     APP LAYOUT
-     ========================= */
-  .app{
-    height:100vh;
-    display:grid;
-    grid-template-rows: 1fr auto auto; /* view + HUD + footer */
-    background:var(--bg);
+/* =========================
+   ROOT THEME & GLOBAL BASE
+   ========================= */
+   :root{
+  --bg:#051307;
+  --ink:#d1d725;
+  --ink-soft:rgba(209,215,37,.78);
+  --hud:#0c1707;
+  --hud2:#081106;
+  --hud-border:#1d2c19;
+  --hud-hi:rgba(255,255,200,.05);
+  --hud-lo:rgba(0,0,0,.45);
+  --accent:#7efc6b;
+  --danger:#ff5050;
 }
 
-  
-  /* =========================
-     GAME VIEW (CANVAS WRAP)
-     ========================= */
-  .view{
-    position:relative;
-    display:grid;
-    place-items:center;
-    min-height:0;
-    overflow:hidden;
-    background:#000; /* safe backdrop behind canvas */
-  }
-  #screen{
-    display:block;
-    width:100%;
-    height:100%;
-    max-width:1280px;
-    max-height:800px;
-    aspect-ratio: 960/576;
-    background:#000;
-    image-rendering: pixelated;
-    touch-action:none; /* avoid touch scrolling */
-  }
-  
-  /* =========================
-     BOTTOM HUD BAR
-     ========================= */
-  .hud-bottom{
-    display:flex;
-    align-items:center;
-    justify-content:space-between; /* left stats | middle info | right controls */
-    gap:12px;
-    padding:10px 14px;
-    background:linear-gradient(to bottom, var(--hud), var(--hud2));
-    border-top:1px solid var(--hudBorder);
-    box-shadow: inset 0 1px 0 var(--hudHi), 0 -2px 0 var(--hudLo);
-    min-height:72px;
-    color:var(--ink);
-  }
-  
-  /* Logo canvas on the left */
-  .hud-bottom .logo{
-    width:200px;
-    height:42px;
-    display:block;
-    image-rendering: pixelated;
-  }
-  
-  /* Thin separator bars between HUD columns */
-  .sep{
-    width:1px;
-    align-self:stretch;
-    background:linear-gradient(
-      to bottom,
-      rgba(255,255,200,.08),
-      rgba(0,0,0,.6)
-    );
-    border-left:1px solid rgba(255,255,200,.05);
-    border-right:1px solid rgba(0,0,0,.5);
-    opacity:.9;
-  }
-  
-  /* Columns & rows inside HUD */
-  .hud-col{ display:flex; flex-direction:column; gap:6px; min-width:0; }
-  .hud-row{ display:flex; align-items:center; gap:8px; white-space:nowrap; }
-  
-  /* Tags (e.g., build version) */
-  .tag{
-    display:inline-block;
-    padding:2px 6px;
-    border:1px solid var(--hudBorder);
-    background:rgba(0,0,0,.25);
-    border-radius:4px;
-    font-size:14px;
-    color:var(--inkSoft);
-  }
-  
-  /* Meter (sanity bar) */
-  .meter{
-    --h:12px;
-    position:relative;
-    width:180px;
-    height:var(--h);
-    border:1px solid var(--hudBorder);
-    background:rgba(0,0,0,.35);
-    border-radius:4px;
-    overflow:hidden;
-  }
-  .meter i{
-    display:block;
-    height:100%;
-    background:linear-gradient(90deg, #7efc6b, #c8f35a);
-  }
-  
-  /* Keyboard hint chips */
-  .kbd{
-    display:inline-block;
-    padding:1px 6px;
-    border:1px solid var(--hudBorder);
-    background:#111;
-    border-radius:4px;
-    color:#ddd;
-    font-size:14px;
-  }
-  
-  /* Right side controls container (place Instructions button here) */
-  .hud-right{ display:flex; align-items:center; gap:14px; }
-  
-  /* HUD buttons (e.g., Instructions) */
-  .hud-btn{
-    font: inherit;
-    padding:4px 10px;
-    border:1px solid var(--hudBorder);
-    background:var(--hud);
-    color:var(--ink);
-    border-radius:6px;
-    cursor:pointer;
-  }
-  .hud-btn:focus{ outline:2px solid #fff4; outline-offset:2px; }
-  .hud-btn:hover{ filter:brightness(1.1); }
-  
-  /* =========================
-     INSTRUCTIONS MODAL
-     ========================= */
-  .modal.hidden{ display:none; }
-  .modal{ position:fixed; inset:0; display:grid; place-items:center; z-index:50; }
-  .modal-backdrop{ position:absolute; inset:0; background:rgba(0,0,0,0.6); }
-  .modal-sheet{
-    position:relative; z-index:1; background:#0b0f14; color:var(--ink);
-    border:2px solid var(--hudBorder); border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,.6);
-    width:min(520px, calc(100vw - 32px)); padding:18px;
-  }
-  .modal-sheet h2{ margin:0 0 8px; font-size:20px; letter-spacing:.5px; }
-  .modal-sheet ul{ margin:0 0 12px 18px; padding:0; }
-  .modal-sheet li{ margin:6px 0; }
-  .instr-list{ list-style:none; margin:0 0 12px 0; padding:0; }
-  .instr-list li{ margin:8px 0; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-  .instr-list li > b{ margin-right:4px; }
-  .instr-icon{
+html, body { height:100%; }
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'VT323', ui-monospace, Menlo, Consolas, monospace;
+  overflow:hidden;
+}
+
+/* =========================
+   APP LAYOUT
+   ========================= */
+.app{
+  height:100vh;
+  display:grid;
+  grid-template-rows: 1fr auto auto; /* view + HUD + footer */
+  background:var(--bg);
+}
+
+/* =========================
+   GAME VIEW (CANVAS WRAP)
+   ========================= */
+.view{
+  position:relative;
+  display:grid;
+  place-items:center;
+  min-height:0;
+  overflow:hidden;
+  background:#000; /* safe backdrop behind canvas */
+}
+#screen{
+  display:block;
+  width:100%;
+  height:100%;
+  max-width:1280px;
+  max-height:800px;
+  aspect-ratio: 960/576;
+  background:#000;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
-  vertical-align: -3px;
-  background: transparent;      /* was #000 causing solid squares */
-  border: 1px solid var(--hudBorder);
-  border-radius: 4px;
-  }
+  touch-action:none; /* avoid touch scrolling */
+}
 
-  .instr-icon.small{ vertical-align:-3px; }
+/* =========================
+   BOTTOM HUD BAR
+   ========================= */
+.hud-bottom{
+  display:flex;
+  align-items:center;
+  justify-content:space-between; /* left stats | middle info | right controls */
+  gap:12px;
+  padding:10px 14px;
+  background:linear-gradient(to bottom, var(--hud), var(--hud2));
+  border-top:1px solid var(--hud-border);
+  box-shadow: inset 0 1px 0 var(--hud-hi), 0 -2px 0 var(--hud-lo);
+  min-height:72px;
+  color:var(--ink);
+}
 
-  /* =========================
-     TOUCH JOYSTICK (MOBILE)
-     ========================= */
-  .touch-controls{ 
-    display:none; 
-    position:absolute; 
-    inset:auto 16px 16px auto; 
-  }
-  .touch-controls .stick{
-    width:110px; height:110px; border-radius:50%;
-    background:rgba(0,0,0,.35); border:2px solid var(--hudBorder);
-    position:relative;
-  }
-  .touch-controls .nub{
-    position:absolute; left:50%; top:50%;
-    width:42px; height:42px; margin:-21px 0 0 -21px;
-    border-radius:50%;
-    background:rgba(255,255,255,.12); border:2px solid var(--hudBorder);
-  }
-  /* Show joystick on coarse pointers (phones/tablets) */
-  @media (hover:none) and (pointer:coarse){
-    .touch-controls{ display:block; }
-  }
-  /* Keep everything from grabbing scroll/zoom while playing */
-  canvas, .view, .touch-controls { touch-action: none; }
-  
-  /* =========================
-     RESPONSIVE TWEAKS
-     ========================= */
-  @media (max-width: 900px){
-    .hud-bottom{ flex-wrap:wrap; row-gap:8px; padding:8px 10px; min-height:0; }
-    .hud-bottom .logo{ width:160px; height:34px; }
-    .meter{ width:140px; }
-    .kbd{ font-size:12px; }
-    .hud-btn{ padding:4px 8px; }
-  }
-  .siteFooter{
+/* Logo canvas on the left */
+.hud-bottom .logo{
+  width:200px;
+  height:42px;
+  display:block;
+  image-rendering: pixelated;
+}
+
+/* Thin separator bars between HUD columns */
+.sep{
+  width:1px;
+  align-self:stretch;
+  background:linear-gradient(
+    to bottom,
+    rgba(255,255,200,.08),
+    rgba(0,0,0,.6)
+  );
+  border-left:1px solid rgba(255,255,200,.05);
+  border-right:1px solid rgba(0,0,0,.5);
+  opacity:.9;
+}
+
+/* Columns & rows inside HUD */
+.hud-col{ display:flex; flex-direction:column; gap:6px; min-width:0; }
+.hud-row{ display:flex; align-items:center; gap:8px; white-space:nowrap; }
+
+/* Tag (build version) */
+.tag{
+  display:inline-block;
+  padding:2px 6px;
+  border:1px solid var(--hud-border);
+  background:rgba(0,0,0,.25);
+  border-radius:4px;
+  font-size:14px;
+  color:var(--ink-soft);
+}
+
+/* Sanity meter */
+.meter{
+  --h:12px;
+  position:relative;
+  width:180px;
+  height:var(--h);
+  border:1px solid var(--hud-border);
+  background:rgba(0,0,0,.35);
+  border-radius:4px;
+  overflow:hidden;
+}
+.meter i{
+  display:block;
+  height:100%;
+  width:100%; /* JS sets exact % width */
+  background:linear-gradient(90deg, #7efc6b, #c8f35a);
+}
+
+/* Keyboard hint chips */
+.kbd{
+  display:inline-block;
+  padding:1px 6px;
+  border:1px solid var(--hud-border);
+  background:#111;
+  border-radius:4px;
+  color:#ddd;
+  font-size:14px;
+}
+
+/* Right side controls container (place Instructions button here) */
+.hud-right{ display:flex; align-items:center; gap:14px; }
+
+/* HUD buttons (e.g., Instructions) */
+.hud-btn{
+  font: inherit;
+  padding:4px 10px;
+  border:1px solid var(--hud-border);
+  background:var(--hud);
+  color:var(--ink);
+  border-radius:6px;
+  cursor:pointer;
+}
+.hud-btn:focus{ outline:2px solid #fff4; outline-offset:2px; }
+.hud-btn:hover{ filter:brightness(1.1); }
+
+/* =========================
+   INSTRUCTIONS MODAL
+   ========================= */
+.modal.hidden{ display:none; }
+.modal{ position:fixed; inset:0; display:grid; place-items:center; z-index:50; }
+.modal-backdrop{ position:absolute; inset:0; background:rgba(0,0,0,0.6); }
+.modal-sheet{
+  position:relative; z-index:1; background:#0b0f14; color:var(--ink);
+  border:2px solid var(--hud-border); border-radius:10px; box-shadow:0 10px 30px rgba(0,0,0,.6);
+  width:min(520px, calc(100vw - 32px)); padding:18px;
+}
+.modal-sheet h2{ margin:0 0 8px; font-size:20px; letter-spacing:.5px; }
+.modal-sheet ul{ margin:0 0 12px 18px; padding:0; }
+.modal-sheet li{ margin:6px 0; }
+
+/* Instructions list with sprite icons */
+.instr-list{ list-style:none; margin:0 0 12px 0; padding:0; }
+.instr-list li{
+  margin:8px 0;
+  display:flex;
+  gap:8px;
+  align-items:center;
+  flex-wrap:wrap;
+}
+.instr-list li > b{ margin-right:4px; }
+
+/* The sprites-as-icons */
+.instr-icon{
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  vertical-align:-3px;
+  background:transparent;            /* important: avoid black squares */
+  border:1px solid var(--hud-border);
+  border-radius:4px;
+}
+.instr-icon.small{ vertical-align:-3px; }
+
+/* =========================
+   TOUCH JOYSTICK (MOBILE)
+   ========================= */
+.touch-controls{
+  display:none;
+  position:absolute;
+  inset:auto 16px 16px auto;
+}
+.touch-controls .stick{
+  width:110px; height:110px; border-radius:50%;
+  background:rgba(0,0,0,.35); border:2px solid var(--hud-border);
+  position:relative;
+}
+.touch-controls .nub{
+  position:absolute; left:50%; top:50%;
+  width:42px; height:42px; margin:-21px 0 0 -21px;
+  border-radius:50%;
+  background:rgba(255,255,255,.12); border:2px solid var(--hud-border);
+}
+/* Show joystick on coarse pointers (phones/tablets) */
+@media (hover:none) and (pointer:coarse){
+  .touch-controls{ display:block; }
+}
+/* Keep everything from grabbing scroll/zoom while playing */
+canvas, .view, .touch-controls { touch-action: none; }
+
+/* =========================
+   RESPONSIVE TWEAKS
+   ========================= */
+@media (max-width: 900px){
+  .hud-bottom{ flex-wrap:wrap; row-gap:8px; padding:8px 10px; min-height:0; }
+  .hud-bottom .logo{ width:160px; height:34px; }
+  .meter{ width:140px; }
+  .kbd{ font-size:12px; }
+  .hud-btn{ padding:4px 8px; }
+}
+
+/* =========================
+   FOOTER
+   ========================= */
+.siteFooter{
   display:flex;
   align-items:center;
   justify-content:center;
   padding:8px 12px;
   background:linear-gradient(to bottom, var(--hud), var(--hud2));
-  border-top:1px solid var(--hudBorder);
-  box-shadow: inset 0 1px 0 var(--hudHi), 0 -2px 0 var(--hudLo);
-  color:var(--inkSoft);
+  border-top:1px solid var(--hud-border);
+  box-shadow: inset 0 1px 0 var(--hud-hi), 0 -2px 0 var(--hud-lo);
+  color:var(--ink-soft);
   gap:10px;
   min-height:44px;
 }
-
 .siteFooter a{
   display:inline-flex;
   align-items:center;
@@ -291,29 +304,26 @@
   text-decoration:none;
   filter:brightness(0.98);
 }
-
 .siteFooter a:hover{ filter:brightness(1.06); }
-
 .siteFooter img{
   width:22px; height:22px;
   display:block;
   image-rendering: pixelated;
   opacity:0.9;
 }
-
 .siteFooter span{
-  font-size:16px; /* VT323 looks good a bit smaller here */
+  font-size:16px; /* VT323 reads better a touch smaller here */
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
 }
-
 /* Tighten slightly on small screens */
 @media (max-width: 900px){
   .siteFooter{ padding:6px 10px; min-height:40px; }
   .siteFooter span{ font-size:14px; }
   .siteFooter img{ width:20px; height:20px; }
 }
+
 
   </style>
   </head>
@@ -370,14 +380,13 @@
           </button>
         </div>
 
-        <footer class="siteFooter" aria-label="Brand">
-          <a href="https://ironsignalworks.com" target="_blank" rel="noopener"
-             aria-label="Visit Iron Signal Works">
-            <img src="logo.png" alt="" />
-            <span>Iron Signal Works — Cold Code, Hot Circuits.</span>
-          </a>
-        </footer>
-        
+<!-- NEW: footer row right after .app closing tag? No — inside .app, after HUD -->
+<footer class="siteFooter" aria-label="Brand">
+  <a href="https://ironsignalworks.com" target="_blank" rel="noopener" aria-label="Visit Iron Signal Works">
+    <img src="logo.png" alt="" />
+    <span>Iron Signal Works — Cold Code, Hot Circuits.</span>
+  </a>
+</footer>
       </div>
     </div>
     
@@ -392,43 +401,53 @@
     <div id="instructionsModal" role="dialog" aria-modal="true" aria-labelledby="instrTitle" class="modal hidden">
       <div class="modal-sheet">
         <h2 id="instrTitle">How to Play</h2>
-        <ul class="instr-list">
-          <ul class="instr-list">
-            <li>
-              <canvas class="instr-icon" width="22" height="22" data-sprite="commando" aria-hidden="true"></canvas>
-              <b>Move:</b> WASD or Arrow Keys (mobile: on-screen joystick)
-            </li>
-            <li>
-              Collect all memory fragments to unlock the Exit
-            </li>
-            <li>
-              Sanity drains over time — fragments and seeds restore it
-            </li>
-            <li>
-              <canvas class="instr-icon" width="20" height="20" data-sprite="enemy" aria-hidden="true"></canvas>
-              Drones patrol and will chase if they see you
-            </li>
-            <li>
-              <canvas class="instr-icon" width="20" height="20" data-sprite="palm" aria-hidden="true"></canvas>
-              Palm trees provide camouflage from drones
-            </li>
-            <li>
-              <canvas class="instr-icon" width="20" height="20" data-sprite="mine" aria-hidden="true"></canvas>
-              Mines hurt sanity and can scramble your controls
-            </li>
-            <li>
-              <canvas class="instr-icon" width="20" height="20" data-sprite="ghost" aria-hidden="true"></canvas>
-              Ghosts disturb sanity and visibility
-            </li>
-          </ul>
-          
-        
-        <button id="btnCloseInstructions" class="hud-btn">Close</button>
+      <!-- Replace the whole <ul> in the modal with this -->
+<ul class="instr-list">
+  <li>
+    <canvas class="instr-icon" width="22" height="22" data-sprite="commando" aria-hidden="true"></canvas>
+    <b>Move:</b> WASD or Arrow Keys (mobile: on-screen joystick)
+  </li>
+
+  <li>
+    <canvas class="instr-icon" width="20" height="20" data-sprite="diamond" aria-hidden="true"></canvas>
+    Collect all memory fragments
+    <span style="opacity:.65">→</span>
+    to unlock the Exit
+    <canvas class="instr-icon" width="20" height="20" data-sprite="exit" aria-hidden="true"></canvas>
+  </li>
+
+  <li>
+    Sanity drains over time —
+    <canvas class="instr-icon" width="20" height="20" data-sprite="diamond" aria-hidden="true"></canvas>
+    fragments and
+    <canvas class="instr-icon" width="20" height="20" data-sprite="seed" aria-hidden="true"></canvas>
+    seeds restore it
+  </li>
+
+  <li>
+    <canvas class="instr-icon" width="20" height="20" data-sprite="enemy" aria-hidden="true"></canvas>
+    Drones patrol and will chase if they see you
+  </li>
+
+  <li>
+    <canvas class="instr-icon" width="20" height="20" data-sprite="palm" aria-hidden="true"></canvas>
+    Palm trees provide camouflage from drones
+  </li>
+
+  <li>
+    <canvas class="instr-icon" width="20" height="20" data-sprite="mine" aria-hidden="true"></canvas>
+    Mines hurt sanity and can scramble your controls
+  </li>
+
+  <li>
+    <canvas class="instr-icon" width="20" height="20" data-sprite="ghost" aria-hidden="true"></canvas>
+    Ghosts (Paranoia) disturb sanity and visibility
+  </li>
+</ul>       
+    <button id="btnCloseInstructions" class="hud-btn">Close</button>
       </div>
       <div class="modal-backdrop"></div>
-    </div>
-
-    
+    </div> 
     
     <!-- Minimal wiring for the modal (idempotent) -->
     <script>
@@ -453,41 +472,33 @@
     <script src="./audio.js"></script>
 
     <!-- Keep this AFTER audio.js -->
-<script>
-  /* First-gesture audio unlock — single source of truth */
-  (function () {
-    const onFirstGesture = () => {
-      if (!window.KomAudio) return;
-      try {
-        // Ensure file map is applied, then resume & start bg in same gesture
-        window.KomAudio.configureFiles?.();
-        window.KomAudio.resume(true);
-        window.KomAudio.armAutoBackground?.({ gain: 0.62, fadeIn: 0.9 });
-        window.KomAudio.startBackground?.({ gain: 0.62, fadeIn: 0.9 });
-      } catch (e) {
-        console.warn('Audio unlock error', e);
-      }
-    };
-    ['pointerdown', 'mousedown', 'touchstart', 'keydown'].forEach(evt => {
-      window.addEventListener(evt, onFirstGesture, { once: true, passive: true });
-      document.addEventListener(evt, onFirstGesture, { once: true, passive: true });
-    });
-  })();
-  </script>
+    <script>
+      /* Single source of truth for audio unlock */
+      (function () {
+        let armed = false;
+      
+        function armOnce() {
+          if (armed || !window.KomAudio) return;
+          armed = true;
+          try {
+            window.KomAudio.configureFiles?.();                 // map custom files
+            window.KomAudio.resume(true);                       // resume audio context
+            window.KomAudio.armAutoBackground?.({ gain: 0.62, fadeIn: 0.9 });
+            window.KomAudio.startBackground?.({ gain: 0.62, fadeIn: 0.9 }); // actually start loop
+          } catch (e) { console.warn('Audio unlock error', e); }
+        }
+      
+        ['pointerdown','mousedown','touchstart','keydown'].forEach(evt => {
+          window.addEventListener(evt, armOnce, { once:true, passive:true });
+          document.addEventListener(evt, armOnce, { once:true, passive:true });
+        });
+      })();
+      </script>
+      
   
   
     <script>
-    /* one-time audio unlock (extra-safe) */
-    (function(){
-      const unlock = () => {
-        if (window.KomAudio && typeof window.KomAudio.resume === 'function') {
-          window.KomAudio.resume(true);
-          window.KomAudio.startBackground?.({ gain: 0.65, fadeIn: 1.0 });
-        }
-      };
-      ['pointerdown','mousedown','touchstart'].forEach(evt => window.addEventListener(evt, unlock, { once: true, passive: true }));
-      window.addEventListener('keydown', unlock, { once: true });
-    })();
+
   
     /* used by render() and the joystick */
     function isPortraitMobile(){
@@ -739,8 +750,7 @@
     // On first input, resume AND explicitly start the loop to avoid first-round silence
     const unlock = () => {
       window.KomAudio.resume(true).then(() => {
-        window.KomAudio.startBackground({ gain: 0.62, fadeIn: 0.9 });
-      });
+          });
     };
     ['pointerdown','mousedown','touchstart','keydown'].forEach(ev=>{
       window.addEventListener(ev, unlock, { once:true, passive:true });
